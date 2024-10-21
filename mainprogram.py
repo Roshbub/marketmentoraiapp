@@ -8,8 +8,7 @@ from sklearn.metrics import mean_squared_error
 import numpy as np
 import plotly.graph_objects as go
 from tqdm import tqdm
-print(historical_data.columns.tolist())
-print(feature_columns.tolist())
+
 # Title of the app
 st.title('Interactive Stock Predictor App')
 
@@ -88,7 +87,8 @@ if st.button('Predict Stocks'):
                     # Define features and target variable
                     features = historical_data[['symbol_encoded', 'year', 'month', 'day'] + feature_columns]
                     target = historical_data['Close']  # Assuming 'Close' will always be there for the target variable
-
+print(historical_data.columns.tolist())
+print(feature_columns.tolist())
                     # Split data into train and test sets
                     X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
