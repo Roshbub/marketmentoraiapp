@@ -53,7 +53,7 @@ if st.button('Predict Stocks'):
 
             if historical_data:
         # Concatenate all historical data into a single DataFrame at once
-            return pd.concat(historical_data)
+                return pd.concat(historical_data)
             else:
                 st.error("No historical data was fetched. Please check the input or try again.")
                 return pd.DataFrame()  # Return empty DataFrame
