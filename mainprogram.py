@@ -1,3 +1,25 @@
+import os
+import subprocess
+import sys
+
+# Function to install missing packages
+def install_package(package):
+    try:
+        __import__(package)
+    except ImportError:
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+# List of required packages
+required_packages = [
+    'yfinance', 'yahoo_fin', 'sklearn', 'textblob', 'matplotlib', 'seaborn',
+    'pypfopt', 'tqdm', 'statsmodels'
+]
+
+# Install each package if missing
+for package in required_packages:
+    install_package(package)
+
+
 # Import packages
 import streamlit as st
 import pandas as pd
