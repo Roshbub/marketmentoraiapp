@@ -40,7 +40,6 @@ def prepare_data(tickers, period):
     else:
         st.error("No historical data was fetched. Please check the input or try again.")
         return pd.DataFrame()
-print(historical_data.columns.tolist())
 
 # Button to fetch data and make predictions
 if st.button('Predict Stocks'):
@@ -63,6 +62,7 @@ if st.button('Predict Stocks'):
             historical_data['year'] = historical_data.index.year
             historical_data['month'] = historical_data.index.month
             historical_data['day'] = historical_data.index.day
+        print(historical_data.columns.tolist())
 
             # Dynamic column handling - only use available columns
             feature_columns = [col for col in historical_data.columns if col not in ['Symbol', 'year', 'month', 'day']]
