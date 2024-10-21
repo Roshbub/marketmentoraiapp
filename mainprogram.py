@@ -66,66 +66,6 @@ if st.button('Predict Stocks'):
             historical_data = historical_data.dropna()
             # Label encode the stock symbols
 
-
-# Title of the app
-st.title('Interactive Stock Predictor App')
-
-# User input for investment details
-money = st.number_input('Enter the amount of money:', min_value=0.0, value=1000.0, key='money_input')
-time = st.number_input('Enter the time in weeks:', min_value=1, value=4, key='time_input')
-risk_percentage = st.number_input('Enter risk percentage (0-100):', min_value=0.0, max_value=100.0, value=50.0, key='risk_input')
-returns = st.number_input('Enter expected returns (1-100):', min_value=1.0, max_value=100.0, value=10.0, key='returns_input')
-
-
-# User input for historical period using a dropdown menu
-valid_periods = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
-historical_period = st.selectbox('Select historical data period:', valid_periods)
-
-# Function to get historical data for companies
-# Define prepare_data before the if st.button('Predict Stocks'): block
-def prepare_data(tickers, period):
-    historical_data = []
-    with st.spinner('Downloading historical data...'):
-        for symbol in tqdm(tickers['Symbol'], desc="Downloading historical data"):
-            try:
-                stock_data = yf.download(symbol, period=period)
-                if not stock_data.empty:
-                    stock_data['Symbol'] = symbol
-                    historical_data.append(stock_data)
-            except Exception as e:
-                st.warning(f"Could not download data for {symbol}: {e}")
-
-    if historical_data:
-        return pd.concat(historical_data)
-    else:
-        st.error("No historical data was fetched. Please check the input or try again.")
-        return pd.DataFrame()
-
-# Button to fetch data and make predictions
-if st.button('Predict Stocks'):
-    # Initialize tickers to an empty DataFrame
-    tickers = pd.DataFrame()  # Define tickers before the try-except block
-    try:
-        # Fetch the list of S&P 500 companies
-        tickers = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
-    except Exception as e:
-        st.error(f"Error fetching S&P 500 companies: {e}")
-
-    # Check if tickers DataFrame is not empty after try-except
-    if not tickers.empty:
-        # Prepare historical data
-        # Now prepare_data is defined and accessible
-        historical_data = prepare_data(tickers, historical_period)
-
-        # Check if historical data is empty
-        if not historical_data.empty:
-            # Feature engineering
-            historical_data['year'] = historical_data.index.year
-            historical_data['month'] = historical_data.index.month
-            historical_data['day'] = historical_data.index.day
-            historical_data = historical_data.dropna()
-
-            # Label encode the stock symbols
             le = LabelEncoder()
             historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
 
