@@ -89,8 +89,8 @@ if st.button('Predict Stocks'):
                     target = historical_data['Close']  # Assuming 'Close' will always be there for the target variable
 print(historical_data.columns.tolist())
 print(feature_columns.tolist())
-                # Split data into train and test sets
-                X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
+            # Split data into train and test sets
+            X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
                 # Create and train Random Forest Regressor
                 rf_regressor = RandomForestRegressor(n_estimators=100, random_state=42)
