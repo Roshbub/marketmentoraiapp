@@ -137,7 +137,7 @@ if st.button('Predict Stocks'):
                            for symbol in tickers['Symbol']}  # Placeholder for live data
 
         # Predict returns using the machine learning model
-        predicted_returns = predict_stock_investment(final_rf_regressor, live_data_sp500, le)
+        predicted_returns = predict_stock_investment(rf_regressor, live_data_sp500, le)
         st.write(predicted_returns)
 
         # Function to recommend stocks based on predicted returns and risk percentage
