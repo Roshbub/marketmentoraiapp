@@ -43,25 +43,17 @@ if st.button('Predict Stocks'):
     # Prepare historical data for model training
     # Fetch historical data for model training
 def prepare_data(tickers):
-    historical_data = []
-    for symbol in tqdm(tickers['Symbol']):
-        try:
-            stock_data = yf.download(symbol, period='3mo')
-            if stock_data.empty:
-                st.warning(f"No historical data found for {symbol}.")
-                continue
-            stock_data['Symbol'] = symbol  
-            historical_data.append(stock_data)
-        except Exception as e:
-            st.warning(f"Could not download data for {symbol}: {e}")
+        historical_data = []
+        for symbol in tqdm(tickers['Symbol']):
+            try:
+                stock_data = yf.download(symbol, period='3mo')
+                stock_data['Symbol'] = symbol
+                historical_data.append(stock_data)
+            except:
+                st.warning(f"Could not download data for {symbol}")
+        return pd.concat(historical_data)
 
-    historical_df = pd.concat(historical_data) if historical_data else pd.DataFrame()
-    if historical_df.empty:
-        st.error("No historical data retrieved. Please check the ticker symbols or your internet connection.")
-        return historical_df
-
-    return historical_df
-
+    historical_data = prepare_data(tickers)
 # In the function that processes live data
 def predict_stock_investment(model, live_data, le):
     prepared_data = []
