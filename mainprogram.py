@@ -165,28 +165,35 @@ if st.button('Predict Stocks'):
 
                     # Print recommended stocks and reasons for selection
                     st.write('\nRecommended Stocks:')
+                    total_return = sum(stock[2] for stock in recommended_stocks)  # Sum of predicted returns
+                    investment_allocation = {}
+
                     for symbol, data, returns in recommended_stocks:
+                        # Allocate investment proportionally to predicted returns
+                        allocation = (returns / total_return) * money if total_return > 0 else 0
+                        investment_allocation[symbol] = allocation
+
                         st.write(f"\nSymbol: {symbol}")
                         st.write(f"Volatility (Beta): {data.get('beta', 'N/A')}")
                         st.write(f"Predicted Return: {returns:.2f}")
+                        st.write(f"Recommended Investment: ${allocation:.2f}")
 
                         # Monte Carlo simulations
                         def monte_carlo_simulation(symbol, initial_price, predicted_return, volatility, days=30, simulations=1000):
                             price_paths = np.zeros((days, simulations))
                             price_paths[0] = initial_price
-                            
                             for t in range(1, days):
-                                random_returns = np.random.normal(predicted_return / 100, volatility / 100, simulations)
-                                price_paths[t] = price_paths[t - 1] * (1 + random_returns)
+                                for s in range(simulations):
+                                    price_paths[t, s] = price_paths[t - 1, s] * (1 + np.random.normal(predicted_return, volatility))
 
                             return price_paths
 
-                        # Assuming some volatility for simulation; in practice, fetch this data
-                        volatility = np.random.uniform(0.1, 0.5)  # Placeholder volatility
-                        initial_price = data['previousClose']
-                        simulated_prices = monte_carlo_simulation(symbol, initial_price, returns, volatility)
+                        # Simulate stock price movement
+                        initial_price = live_data_sp500[symbol]['previousClose']  # Use previous close price
+                        volatility = np.random.uniform(0.1, 0.5)  # Placeholder for actual volatility
+                        simulated_prices = monte_carlo_simulation(symbol, initial_price, predicted_return, volatility)
 
-                        # Plotting results using Plotly
+                        # Plot Monte Carlo Simulation
                         fig = go.Figure()
                         for i in range(simulated_prices.shape[1]):
                             fig.add_trace(go.Scatter(x=np.arange(simulated_prices.shape[0]), y=simulated_prices[:, i], mode='lines', line=dict(width=0.5), opacity=0.5))
