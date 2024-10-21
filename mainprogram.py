@@ -76,10 +76,7 @@ if st.button('Predict Stocks'):
             if missing_columns:
                 st.error(f"Missing required columns: {missing_columns}")
             else:
-                # Drop NaNs from the required columns
-                historical_data = historical_data.dropna(subset=required_columns)
-
-                # Check if the DataFrame is empty after dropping NaNs
+           # Check if the DataFrame is empty after dropping NaNs
                 if historical_data.empty:
                     st.error("DataFrame is empty after dropping NaNs. Please check the data.")
                 else:
