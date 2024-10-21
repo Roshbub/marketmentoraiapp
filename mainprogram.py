@@ -1,23 +1,3 @@
-import sys
-import subprocess
-
-# Function to install a package
-def install(package):
-    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-# Install necessary packages
-install('yfinance')
-install('yahoo_fin')
-install('scikit-learn')
-install('textblob')
-install('matplotlib')
-install('seaborn')
-install('pypfopt')
-install('tqdm')
-install('statsmodels')
-
-
-
 # Import packages
 import streamlit as st
 import pandas as pd
