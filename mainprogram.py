@@ -72,7 +72,10 @@ if st.button('Predict Stocks'):
                 st.warning("No suitable feature columns available in the historical data.")
             else:
                 # Drop NaNs from the available feature columns
-                historical_data = historical_data.dropna(subset=feature_columns)
+                st.write(historical_data.isnull().sum())  # Display count of missing values in each column
+                historical_data = historical_data.dropna(subset=['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume'])
+                historical_data = historical_data.dropna(thresh=5)  # Drop rows with 5 or more NaNs
+                historical_data['Volume'].fillna(0, inplace=True) # Fill NaN values in 'Volume' with 0
 
                 # Check if the DataFrame is empty after dropping NaNs
                 if historical_data.empty:
