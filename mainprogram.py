@@ -38,44 +38,59 @@ if st.button('Predict Stocks'):
 
     if not tickers.empty:
         # Function to get historical data for companies
-        def prepare_data(tickers, period):
-            historical_data = []
-            with st.spinner('Downloading historical data...'):
-                for symbol in tqdm(tickers['Symbol'], desc="Downloading historical data"):
-                    try:
-                        stock_data = yf.download(symbol, period=period)  # Use selected period directly
-                        if not stock_data.empty:
-                            stock_data['Symbol'] = symbol
-                            historical_data.append(stock_data)
-                    except Exception as e:
-                        st.warning(f"Could not download data for {symbol}: {e}")
-            if historical_data:
-                return pd.concat(historical_data)
-            else:
-                st.error("No historical data was fetched. Please check the input or try again.")
-                return pd.DataFrame()  # Return empty DataFrame
+        # Function to get historical data for companies
+def prepare_data(tickers, period):
+    historical_data = []
+    with st.spinner('Downloading historical data...'):
+        for symbol in tqdm(tickers['Symbol'], desc="Downloading historical data"):
+            try:
+                stock_data = yf.download(symbol, period=period)  # Use selected period directly
+                if not stock_data.empty:
+                    stock_data['Symbol'] = symbol
+                    historical_data.append(stock_data)
+            except Exception as e:
+                st.warning(f"Could not download data for {symbol}: {e}")
 
-        historical_data = prepare_data(tickers, historical_period)
+    if historical_data:
+        # Concatenate all historical data into a single DataFrame at once
+        return pd.concat(historical_data)
+    else:
+        st.error("No historical data was fetched. Please check the input or try again.")
+        return pd.DataFrame()  # Return empty DataFrame
 
-        # Feature engineering
-        if not historical_data.empty:
-            historical_data['year'] = historical_data.index.year
-            historical_data['month'] = historical_data.index.month
-            historical_data['day'] = historical_data.index.day
-            historical_data.dropna(inplace=True)
+# Prepare historical data
+historical_data = prepare_data(tickers, historical_period)
 
-            # Label encode the stock symbols
-            le = LabelEncoder()
-            historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
+# Feature engineering
+if not historical_data.empty:
+    # Instead of adding columns one by one, collect data in a dictionary
+    data_to_add = {
+        'year': historical_data.index.year,
+        'month': historical_data.index.month,
+        'day': historical_data.index.day,
+    }
+    
+    # Now create a new DataFrame with the additional columns
+    additional_data_df = pd.DataFrame(data_to_add, index=historical_data.index)
+    
+    # Join the two DataFrames
+    historical_data = pd.concat([historical_data, additional_data_df], axis=1)
 
-            # Define features and target variable
-            features = historical_data[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Volume']]
-            target = historical_data['Adj Close']
+    # Drop any rows with missing values
+    historical_data.dropna(inplace=True)
 
-            # Ensure that the features and target are valid
-            if features.empty or target.empty:
-                st.error("Feature or target data is empty. Check the historical data for issues.")
-            else:
+    # Label encode the stock symbols
+    le = LabelEncoder()
+    historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
+
+    # Define features and target variable
+    features = historical_data[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Volume']]
+    target = historical_data['Adj Close']
+
+    # Ensure that the features and target are valid
+    if features.empty or target.empty:
+        st.error("Feature or target data is empty. Check the historical data for issues.")
+
                 # Split data into train and test sets
                 X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
