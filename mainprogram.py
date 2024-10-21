@@ -45,9 +45,6 @@ if st.button('Predict Stocks'):
                 st.warning(f"Could not fetch data for {symbol}")
         return live_data_for_companies
 
-    # Get live data for S&P 500 companies
-    live_data_sp500 = get_live_data_for_companies(tickers)
-
     # Prepare historical data for model training
     def prepare_data(tickers):
         historical_data = []
