@@ -62,10 +62,7 @@ if st.button('Predict Stocks'):
         # Prepare historical data
         historical_data = prepare_data(tickers, historical_period)
 
-        # Check if historical data is empty
-        if historical_data.empty:
-            st.error("No historical data available. Please try a different period or check the input.")
-        else:
+
             # Feature engineering
             historical_data['year'] = historical_data.index.year
             historical_data['month'] = historical_data.index.month
@@ -80,10 +77,6 @@ if st.button('Predict Stocks'):
             features = historical_data[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Volume']]
             target = historical_data['Adj Close']
 
-            # Ensure that features and target are valid
-            if features.empty or target.empty:
-                st.error("Features or target data is empty. Unable to proceed with model training.")
-            else:
                 # Split data into train and test sets
                 X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
