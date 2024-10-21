@@ -9,6 +9,9 @@ from sklearn.metrics import mean_squared_error
 import numpy as np
 import plotly.graph_objects as go
 from tqdm import tqdm
+from textblob import TextBlob
+from pypfopt.efficient_frontier import EfficientFrontier
+from pypfopt import risk_models, expected_returns
 
 # Title of the app
 st.title('Interactive Stock Predictor App')
@@ -27,6 +30,14 @@ historical_period = st.selectbox('Select historical data period:', valid_periods
 if not (0 <= risk_percentage <= 100):
     st.error('Invalid input for risk percentage. Please enter a value between 0 and 100.')
 
+# Create a DataFrame with the user input
+user_data = pd.DataFrame({
+    'money': [money],
+    'time': [time],
+    'risk_percentage': [risk_percentage],
+    'returns': [returns]
+})
+
 # Button to fetch data and make predictions
 if st.button('Predict Stocks'):
     # Fetch the list of S&P 500 companies
@@ -43,179 +54,184 @@ if st.button('Predict Stocks'):
             with st.spinner('Downloading historical data...'):
                 for symbol in tqdm(tickers['Symbol'], desc="Downloading historical data"):
                     try:
-                        stock_data = yf.download(symbol, period=period)  # Use selected period directly
+                        stock_data = yf.download(symbol, period=period)
                         if not stock_data.empty:
                             stock_data['Symbol'] = symbol
                             historical_data.append(stock_data)
                     except Exception as e:
                         st.warning(f"Could not download data for {symbol}: {e}")
-
             if historical_data:
-                # Concatenate all historical data into a single DataFrame at once
                 return pd.concat(historical_data)
             else:
                 st.error("No historical data was fetched. Please check the input or try again.")
-                return pd.DataFrame()  # Return empty DataFrame
+                return pd.DataFrame()
 
         # Prepare historical data
         historical_data = prepare_data(tickers, historical_period)
 
         # Feature engineering
-        if not historical_data.empty:
-            # Instead of adding columns one by one, collect data in a dictionary
-            data_to_add = {
-                'year': historical_data.index.year,
-                'month': historical_data.index.month,
-                'day': historical_data.index.day,
-            }
-            
-            # Now create a new DataFrame with the additional columns
-            additional_data_df = pd.DataFrame(data_to_add, index=historical_data.index)
-            
-            # Join the two DataFrames
-            historical_data = pd.concat([historical_data, additional_data_df], axis=1)
+        historical_data['year'] = historical_data.index.year
+        historical_data['month'] = historical_data.index.month
+        historical_data['day'] = historical_data.index.day
+        historical_data = historical_data.dropna()
 
-            # Drop any rows with missing values
-            historical_data.dropna(inplace=True)
+        # Label encode the stock symbols
+        le = LabelEncoder()
+        historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
 
-            # Label encode the stock symbols
-            le = LabelEncoder()
-            historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
+        # Define features and target variable
+        features = historical_data[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Volume']]
+        target = historical_data['Adj Close']
 
-            # Define features and target variable
-            features = historical_data[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Volume']]
-            target = historical_data['Adj Close']
+        # Split data into train and test sets
+        X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
-            # Ensure that the features and target are valid
-            if features.empty or target.empty:
-                st.error("Feature or target data is empty. Check the historical data for issues.")
-            else:
-                # Split data into train and test sets
-                X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
+        # Use a subset of the data for hyperparameter tuning
+        X_train_subset, _, y_train_subset, _ = train_test_split(X_train, y_train, train_size=0.2, random_state=42)
 
-                # Create a Random Forest Regressor
-                rf_regressor = RandomForestRegressor()
+        # Create a Random Forest Regressor
+        rf_regressor = RandomForestRegressor()
 
-                # Define hyperparameters for randomized search
-                param_grid = {
-                    'n_estimators': [50, 100, 200],
-                    'max_depth': [None, 10, 20],
-                    'min_samples_split': [2, 5, 10],
-                    'min_samples_leaf': [1, 2, 4]
-                }
+        # Define hyperparameters for randomized search
+        param_grid = {
+            'n_estimators': [50, 100, 200],
+            'max_depth': [None, 10, 20],
+            'min_samples_split': [2, 5, 10],
+            'min_samples_leaf': [1, 2, 4]
+        }
 
-                # Perform randomized search for hyperparameter tuning
-                with st.spinner('Training the model...'):
-                    random_search = RandomizedSearchCV(rf_regressor, param_distributions=param_grid, n_iter=50, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, random_state=42)
-                    random_search.fit(X_train, y_train)
+        # Perform randomized search for hyperparameter tuning
+        random_search = RandomizedSearchCV(rf_regressor, param_distributions=param_grid, n_iter=50, cv=5,
+                                           scoring='neg_mean_squared_error', n_jobs=-1, random_state=42)
+        random_search.fit(X_train_subset, y_train_subset)
 
-                    # Train the final model using the best parameters found
-                    final_rf_regressor = RandomForestRegressor(**random_search.best_params_)
-                    final_rf_regressor.fit(X_train, y_train)
+        # Output the best parameters and score
+        best_params = random_search.best_params_
+        best_score = random_search.best_score_
+        st.write("Best Parameters: ", best_params)
+        st.write("Best Score: ", best_score)
 
-                    # Predict on the test set and calculate mean squared error
-                    y_pred = final_rf_regressor.predict(X_test)
-                    mse = mean_squared_error(y_test, y_pred)
+        # Train the final model using the best parameters found
+        final_rf_regressor = RandomForestRegressor(**best_params)
+        final_rf_regressor.fit(X_train, y_train)
 
-                    st.write("Mean Squared Error on Test Set: ", mse)
+        # Predict on the test set and calculate mean squared error
+        y_pred = final_rf_regressor.predict(X_test)
+        mse = mean_squared_error(y_test, y_pred)
+        st.write("Mean Squared Error on Test Set: ", mse)
 
-                    # Fetch live data for companies
-                    live_data_for_companies = {}
-                    for symbol in tqdm(tickers['Symbol'], desc="Fetching live data"):
-                        try:
-                            live_data = yf.Ticker(symbol).info
-                            live_data_for_companies[symbol] = live_data
-                        except Exception as e:
-                            st.warning(f"Could not fetch data for {symbol}: {e}")
+        # Function to predict stock investment
+        def predict_stock_investment(model, live_data, le):
+            prepared_data = []
+            for symbol, data in live_data.items():
+                try:
+                    prepared_data.append({
+                        'symbol': symbol,
+                        'Open': data['open'],
+                        'High': data['dayHigh'],
+                        'Low': data['dayLow'],
+                        'Close': data['previousClose'],
+                        'Volume': data['volume']
+                    })
+                except Exception as e:
+                    st.warning(f"Could not process data for {symbol}: {e}")
+                    continue
 
-                    # Function to predict stock investment returns
-                    def predict_stock_investment(model, live_data, le):
-                        prepared_data = []
-                        for symbol, data in live_data.items():
-                            try:
-                                if all(k in data for k in ['open', 'dayHigh', 'dayLow', 'previousClose']):
-                                    prepared_data.append({
-                                        'symbol': symbol,
-                                        'Open': data['open'],
-                                        'High': data['dayHigh'],
-                                        'Low': data['dayLow'],
-                                        'Close': data['previousClose'],
-                                        'Volume': data['volume']
-                                    })
-                            except Exception as e:
-                                st.warning(f"Missing data for {symbol}, skipping...")
-                        
-                        if not prepared_data:
-                            st.error("No valid live data available for prediction.")
-                            return pd.Series()  # Return an empty series or handle as necessary
+            # Convert to DataFrame
+            prepared_df = pd.DataFrame(prepared_data)
+            prepared_df['year'] = pd.to_datetime('now').year
+            prepared_df['month'] = pd.to_datetime('now').month
+            prepared_df['day'] = pd.to_datetime('now').day
 
-                        prepared_df = pd.DataFrame(prepared_data)
-                        prepared_df['year'] = pd.to_datetime('now').year
-                        prepared_df['month'] = pd.to_datetime('now').month
-                        prepared_df['day'] = pd.to_datetime('now').day
-                        prepared_df['symbol_encoded'] = le.transform(prepared_df['symbol'])
-                        features = prepared_df[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Volume']]
-                        predicted_returns = model.predict(features)
-                        prepared_df['predicted_returns'] = predicted_returns
-                        prepared_df.set_index('symbol', inplace=True)
-                        return prepared_df['predicted_returns']
+            # Handle unseen labels during transformation
+            le.classes_ = np.append(le.classes_, prepared_df['symbol'].unique())
+            prepared_df['symbol_encoded'] = le.transform(prepared_df['symbol'])
 
-                    # Predict returns using the model
-                    predicted_returns = predict_stock_investment(final_rf_regressor, live_data_for_companies, le)
+            # Define features for prediction
+            features = prepared_df[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Volume']]
+            predicted_returns = model.predict(features)
 
-                    if not predicted_returns.empty:
-                        st.write(predicted_returns)
+            # Add the predicted returns to the DataFrame
+            prepared_df['predicted_returns'] = predicted_returns
+            prepared_df.set_index('symbol', inplace=True)
 
-                        # Recommend stocks based on predicted returns and risk percentage
-                        def recommend_stocks(live_data_sp500, predicted_returns, risk_percentage, money, top_n=5):
-                            recommended_stocks = []
-                            for symbol, data in live_data_sp500.items():
-                                try:
-                                    if symbol in predicted_returns.index:
-                                        predicted_return = predicted_returns.loc[symbol]
-                                        if risk_percentage < 33 and data.get('beta', 0) < 1:
-                                            recommended_stocks.append((symbol, data, predicted_return))
-                                        elif 33 <= risk_percentage < 66 and 1 <= data.get('beta', 0) < 1.5:
-                                            recommended_stocks.append((symbol, data, predicted_return))
-                                        elif risk_percentage >= 66 and data.get('beta', 0) >= 1.5:
-                                            recommended_stocks.append((symbol, data, predicted_return))
-                                except Exception as e:
-                                    st.warning(f"Error processing {symbol}: {e}")
-                                    pass
-                            recommended_stocks.sort(key=lambda x: x[2], reverse=True)
-                            return recommended_stocks[:top_n]
+            return prepared_df['predicted_returns']
 
-                        # Get recommended stocks
-                        recommended_stocks = recommend_stocks(live_data_for_companies, predicted_returns, risk_percentage, money)
+        # Assuming live_data_sp500 is available; otherwise, you need to define it
+        live_data_sp500 = {symbol: {'open': 100, 'dayHigh': 105, 'dayLow': 95, 'previousClose': 100, 'volume': 1000}
+                           for symbol in tickers['Symbol']}  # Placeholder for live data
 
-                        with st.expander("Recommended Stocks Based on Predicted Returns"):
-                            for stock in recommended_stocks:
-                                st.write(f"Stock: {stock[0]}, Predicted Return: {stock[2]}, Beta: {stock[1].get('beta', 'N/A')}")
+        # Predict returns using the machine learning model
+        predicted_returns = predict_stock_investment(final_rf_regressor, live_data_sp500, le)
+        st.write(predicted_returns)
 
-                        # Monte Carlo Simulation
-                        def monte_carlo_simulation(predicted_returns, iterations=1000):
-                            simulated_prices = []
-                            for _ in range(iterations):
-                                simulation = []
-                                for return_value in predicted_returns:
-                                    simulated_price = np.random.normal(loc=return_value, scale=0.02)  # Assuming a small standard deviation
-                                    simulation.append(simulated_price)
-                                simulated_prices.append(simulation)
-                            return np.array(simulated_prices)
+        # Function to recommend stocks based on predicted returns and risk percentage
+        def recommend_stocks(live_data_sp500, predicted_returns, risk_percentage, money, top_n=5):
+            recommended_stocks = []
+            for symbol, data in live_data_sp500.items():
+                try:
+                    if symbol in predicted_returns.index:
+                        predicted_return = predicted_returns.loc[symbol]
+                        # Placeholder for beta; should be fetched from stock_info or a reliable source
+                        data['beta'] = np.random.uniform(0.5, 2.0)  # Example: Randomly generated beta for illustration
 
-                        simulated_prices = monte_carlo_simulation(predicted_returns)
+                        if risk_percentage < 33 and data['beta'] < 1:
+                            recommended_stocks.append((symbol, data, predicted_return))
+                        elif 33 <= risk_percentage < 66 and 1 <= data['beta'] < 1.5:
+                            recommended_stocks.append((symbol, data, predicted_return))
+                        elif risk_percentage >= 66 and data['beta'] >= 1.5:
+                            recommended_stocks.append((symbol, data, predicted_return))
+                except Exception as e:
+                    st.warning(f"Error processing {symbol}: {e}")
+                    continue
 
-                        # Plotting the results
-                        st.subheader("Monte Carlo Simulation Results")
-                        fig = go.Figure()
-                        for i in range(simulated_prices.shape[0]):
-                            fig.add_trace(go.Scatter(y=simulated_prices[i], mode='lines', name=f'Simulation {i + 1}'))
+            # Sort the recommended stocks by predicted returns in descending order and select the top N
+            recommended_stocks.sort(key=lambda x: x[2], reverse=True)
+            return recommended_stocks[:top_n]
 
-                        fig.update_layout(title='Monte Carlo Simulation of Stock Prices', xaxis_title='Time', yaxis_title='Price')
-                        st.plotly_chart(fig)
+        # Recommend stocks based on predicted returns and risk percentage
+        recommended_stocks = recommend_stocks(live_data_sp500, predicted_returns, risk_percentage, money, top_n=5)
 
-                    else:
-                        st.warning("No predicted returns to display.")
+        # Print recommended stocks and reasons for selection
+        st.write('\nRecommended Stocks:')
+        for symbol, data, returns in recommended_stocks:
+            st.write(f"\nSymbol: {symbol}")
+            st.write(f"Company: {data.get('longName', 'N/A')}")
+            st.write(f"Volatility (Beta): {data.get('beta', 'N/A')}")
+            st.write(f"Predicted Return: {returns:.2f}")
 
-    else:
-        st.error("No S&P 500 companies found. Please check the internet connection or source.")
+            # Monte Carlo simulations
+            def monte_carlo_simulation(symbol, initial_price, predicted_return, volatility, days=30, simulations=1000):
+                price_paths = np.zeros((days, simulations))
+                price_paths[0] = initial_price
+                
+                for t in range(1, days):
+                    random_returns = np.random.normal(predicted_return / 100, volatility / 100, simulations)
+                    price_paths[t] = price_paths[t - 1] * (1 + random_returns)
+                
+                return price_paths
+
+            # Assuming a volatility placeholder (standard deviation of historical returns)
+            historical_volatility = np.random.uniform(0.1, 0.3)  # Placeholder volatility
+            initial_price = live_data_sp500[symbol]['previousClose']  # Placeholder for actual price
+            simulations = monte_carlo_simulation(symbol, initial_price, returns, historical_volatility)
+
+            # Calculate the average price path (best-fit line)
+            average_path = simulations.mean(axis=1)
+
+            # Calculate the Sharpe ratio
+            average_return = average_path[-1] - initial_price
+            risk_free_rate = 0.01  # Example risk-free rate
+            sharpe_ratio = (average_return - risk_free_rate) / (historical_volatility * np.sqrt(252))  # Annualized Sharpe Ratio
+
+            # Plotting the results using Plotly
+            fig = go.Figure()
+            for i in range(simulations.shape[1]):
+                fig.add_trace(go.Scatter(x=np.arange(0, simulations.shape[0]), y=simulations[:, i], mode='lines', line=dict(color='blue', width=0.5), showlegend=False))
+
+            fig.add_trace(go.Scatter(x=np.arange(0, len(average_path)), y=average_path, mode='lines', line=dict(color='red', width=2), name='Average Path'))
+            fig.update_layout(title=f'Monte Carlo Simulations for {symbol}', xaxis_title='Days', yaxis_title='Price', showlegend=True)
+            st.plotly_chart(fig)
+
+            st.write(f"Sharpe Ratio for {symbol}: {sharpe_ratio:.2f}")
+
