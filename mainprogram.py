@@ -8,7 +8,8 @@ from sklearn.metrics import mean_squared_error
 import numpy as np
 import plotly.graph_objects as go
 from tqdm import tqdm
-
+print(historical_data.columns.tolist())
+print(feature_columns.tolist())
 # Title of the app
 st.title('Interactive Stock Predictor App')
 
@@ -62,12 +63,11 @@ if st.button('Predict Stocks'):
             historical_data['year'] = historical_data.index.year
             historical_data['month'] = historical_data.index.month
             historical_data['day'] = historical_data.index.day
-        print(historical_data.columns.tolist())
 
             # Dynamic column handling - only use available columns
             feature_columns = [col for col in historical_data.columns if col not in ['Symbol', 'year', 'month', 'day']]
             feature_columns = [col for col in feature_columns if historical_data[col].dtype in [np.float64, np.int64]]  # Use only numeric columns
-            print(feature_columns.tolist())
+        
             # Debug output: Display count of missing values in each column
             st.write("Missing values count:", historical_data.isnull().sum())
             
