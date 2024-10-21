@@ -92,13 +92,13 @@ if not historical_data.empty:
         st.error("Feature or target data is empty. Check the historical data for issues.")
 
                 # Split data into train and test sets
-         X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
+    X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
                 # Create a Random Forest Regressor
-        rf_regressor = RandomForestRegressor()
+    rf_regressor = RandomForestRegressor()
 
                 # Define hyperparameters for randomized search
-                param_grid = {
+    param_grid = {
                     'n_estimators': [50, 100, 200],
                     'max_depth': [None, 10, 20],
                     'min_samples_split': [2, 5, 10],
@@ -106,28 +106,28 @@ if not historical_data.empty:
                 }
 
                 # Perform randomized search for hyperparameter tuning
-                with st.spinner('Training the model...'):
-                    random_search = RandomizedSearchCV(rf_regressor, param_distributions=param_grid, n_iter=50, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, random_state=42)
-                    random_search.fit(X_train, y_train)
+     with st.spinner('Training the model...'):
+            random_search = RandomizedSearchCV(rf_regressor, param_distributions=param_grid, n_iter=50, cv=5, scoring='neg_mean_squared_error', n_jobs=-1, random_state=42)
+            random_search.fit(X_train, y_train)
 
                 # Train the final model using the best parameters found
-                final_rf_regressor = RandomForestRegressor(**random_search.best_params_)
-                final_rf_regressor.fit(X_train, y_train)
+            final_rf_regressor = RandomForestRegressor(**random_search.best_params_)
+            final_rf_regressor.fit(X_train, y_train)
 
                 # Predict on the test set and calculate mean squared error
-                y_pred = final_rf_regressor.predict(X_test)
-                mse = mean_squared_error(y_test, y_pred)
+             y_pred = final_rf_regressor.predict(X_test)
+            mse = mean_squared_error(y_test, y_pred)
 
-                st.write("Mean Squared Error on Test Set: ", mse)
+             st.write("Mean Squared Error on Test Set: ", mse)
 
                 # Fetch live data for companies
-                live_data_for_companies = {}
-                for symbol in tqdm(tickers['Symbol'], desc="Fetching live data"):
-                    try:
-                        live_data = yf.Ticker(symbol).info
-                        live_data_for_companies[symbol] = live_data
-                    except Exception as e:
-                        st.warning(f"Could not fetch data for {symbol}: {e}")
+            live_data_for_companies = {}
+            for symbol in tqdm(tickers['Symbol'], desc="Fetching live data"):
+                 try:
+                    live_data = yf.Ticker(symbol).info
+                    live_data_for_companies[symbol] = live_data
+                 except Exception as e:
+                    st.warning(f"Could not fetch data for {symbol}: {e}")
 
                 # Function to predict stock investment returns
                 def predict_stock_investment(model, live_data, le):
