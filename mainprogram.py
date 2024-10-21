@@ -71,10 +71,11 @@ if st.button('Predict Stocks'):
 st.title('Interactive Stock Predictor App')
 
 # User input for investment details
-money = st.number_input('Enter the amount of money:', min_value=0.0, value=1000.0)
-time = st.number_input('Enter the time in weeks:', min_value=1, value=4)
-risk_percentage = st.number_input('Enter risk percentage (0-100):', min_value=0.0, max_value=100.0, value=50.0)
-returns = st.number_input('Enter expected returns (1-100):', min_value=1.0, max_value=100.0, value=10.0)
+money = st.number_input('Enter the amount of money:', min_value=0.0, value=1000.0, key='money_input')
+time = st.number_input('Enter the time in weeks:', min_value=1, value=4, key='time_input')
+risk_percentage = st.number_input('Enter risk percentage (0-100):', min_value=0.0, max_value=100.0, value=50.0, key='risk_input')
+returns = st.number_input('Enter expected returns (1-100):', min_value=1.0, max_value=100.0, value=10.0, key='returns_input')
+
 
 # User input for historical period using a dropdown menu
 valid_periods = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
