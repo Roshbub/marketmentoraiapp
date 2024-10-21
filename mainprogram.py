@@ -19,8 +19,9 @@ time = st.number_input('Enter the time in weeks:', min_value=1, value=4)
 risk_percentage = st.number_input('Enter risk percentage (0-100):', min_value=0.0, max_value=100.0, value=50.0)
 returns = st.number_input('Enter expected returns (1-100):', min_value=1.0, max_value=100.0, value=10.0)
 
-# User input for historical period
-historical_period_days = st.number_input('Enter historical data period (days):', min_value=1, value=90)
+# User input for historical period using a dropdown menu
+valid_periods = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
+historical_period = st.selectbox('Select historical data period:', valid_periods)
 
 # Validate risk percentage input
 if not (0 <= risk_percentage <= 100):
@@ -48,7 +49,7 @@ if st.button('Predict Stocks'):
         with st.spinner('Downloading historical data...'):
             for symbol in tqdm(tickers['Symbol'], desc="Downloading historical data"):
                 try:
-                    stock_data = yf.download(symbol, period=f'{period}d')
+                    stock_data = yf.download(symbol, period=period)  # Use selected period directly
                     stock_data['Symbol'] = symbol
                     historical_data.append(stock_data)
                 except Exception as e:
@@ -59,7 +60,7 @@ if st.button('Predict Stocks'):
             st.error("No historical data was fetched. Please check the input or try again.")
             return pd.DataFrame()  # Return empty DataFrame
 
-    historical_data = prepare_data(tickers, historical_period_days)
+    historical_data = prepare_data(tickers, historical_period)
 
     # Feature engineering
     if not historical_data.empty:
@@ -199,4 +200,3 @@ if st.button('Predict Stocks'):
                 st.plotly_chart(fig)
             else:
                 st.warning("No predicted returns available for the stocks.")
-       
