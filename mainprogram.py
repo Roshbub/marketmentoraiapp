@@ -9,7 +9,7 @@ import numpy as np
 import plotly.graph_objects as go
 from tqdm import tqdm
 # Title of the app
-st.title('Interactive Stock Predictor App')
+st.title('MarketMentorAI')
 
 # User input for investment details
 money = st.number_input('Enter the amount of money:', min_value=0.0, value=1000.0)
