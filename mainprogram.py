@@ -199,5 +199,4 @@ if st.button('Predict Stocks'):
                 st.plotly_chart(fig)
             else:
                 st.warning("No predicted returns available for the stocks.")
-        else:
-            st.error("Feature engineering failed. Please check historical data.")
+       
