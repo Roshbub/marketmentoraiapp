@@ -1,4 +1,3 @@
-# Import packages
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -9,11 +8,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import mean_squared_error
 import numpy as np
 import matplotlib.pyplot as plt
-from textblob import TextBlob
-import seaborn as sns
-from pypfopt.efficient_frontier import EfficientFrontier
-from pypfopt import risk_models, expected_returns
-from statsmodels.tsa.stattools import adfuller
+import plotly.express as px
 from tqdm import tqdm
 
 # Title of the app
@@ -41,8 +36,8 @@ if st.button('Predict Stocks'):
             try:
                 live_data = yf.Ticker(symbol).info
                 live_data_for_companies[symbol] = live_data
-            except:
-                st.warning(f"Could not fetch data for {symbol}")
+            except Exception as e:
+                st.warning(f"Could not fetch data for {symbol}: {e}")
         return live_data_for_companies
 
     # Prepare historical data for model training
@@ -53,8 +48,8 @@ if st.button('Predict Stocks'):
                 stock_data = yf.download(symbol, period='3mo')
                 stock_data['Symbol'] = symbol
                 historical_data.append(stock_data)
-            except:
-                st.warning(f"Could not download data for {symbol}")
+            except Exception as e:
+                st.warning(f"Could not download data for {symbol}: {e}")
         return pd.concat(historical_data)
 
     historical_data = prepare_data(tickers)
@@ -63,7 +58,7 @@ if st.button('Predict Stocks'):
     historical_data['year'] = historical_data.index.year
     historical_data['month'] = historical_data.index.month
     historical_data['day'] = historical_data.index.day
-    historical_data = historical_data.dropna()
+    historical_data.dropna(inplace=True)
 
     # Label encode the stock symbols
     le = LabelEncoder()
@@ -101,6 +96,9 @@ if st.button('Predict Stocks'):
 
     st.write("Mean Squared Error on Test Set: ", mse)
 
+    # Fetch live data
+    live_data_sp500 = get_live_data_for_companies(tickers)
+
     # Function to predict stock investment returns
     def predict_stock_investment(model, live_data, le):
         prepared_data = []
@@ -114,8 +112,8 @@ if st.button('Predict Stocks'):
                     'Close': data['previousClose'],
                     'Volume': data['volume']
                 })
-            except:
-                pass
+            except Exception as e:
+                st.warning(f"Error processing data for {symbol}: {e}")
         prepared_df = pd.DataFrame(prepared_data)
         prepared_df['year'] = pd.to_datetime('now').year
         prepared_df['month'] = pd.to_datetime('now').month
@@ -153,100 +151,108 @@ if st.button('Predict Stocks'):
     # Get recommended stocks
     recommended_stocks = recommend_stocks(live_data_sp500, predicted_returns, risk_percentage, money, top_n=5)
 
-    # Display recommended stocks
+    # Display recommended stocks with options to select
     st.write('### Recommended Stocks:')
+    stock_options = st.multiselect("Select stocks to view details:", [symbol for symbol, _, _ in recommended_stocks])
+
     for symbol, data, returns in recommended_stocks:
-        st.write(f"**Symbol:** {symbol}")
-        st.write(f"**Company:** {data['longName']}")
-        st.write(f"**Volatility (Beta):** {data['beta']}")
-        st.write(f"**Market Cap:** {data['marketCap']}")
-        st.write(f"**Industry:** {data['industry']}")
-        st.write(f"**Predicted Returns:** {returns}")
-        st.write(f"**Reason:** {'Low risk' if risk_percentage < 33 else 'Medium risk' if risk_percentage < 66 else 'High risk'} stock with appropriate beta value.")
+        if symbol in stock_options:
+            st.write(f"**Symbol:** {symbol}")
+            st.write(f"**Company:** {data.get('longName', 'N/A')}")
+            st.write(f"**Volatility (Beta):** {data.get('beta', 'N/A')}")
+            st.write(f"**Market Cap:** {data.get('marketCap', 'N/A')}")
+            st.write(f"**Industry:** {data.get('industry', 'N/A')}")
+            st.write(f"**Predicted Returns:** {returns:.2f}")
+            st.write(f"**Reason:** {'Low risk' if risk_percentage < 33 else 'Medium risk' if risk_percentage < 66 else 'High risk'} stock with appropriate beta value.")
 
-    # Fetch news articles for recommended stocks
-    def fetch_news_articles(symbol):
-        try:
-            ticker = yf.Ticker(symbol)
-            news = ticker.news
-            if not news:
-                st.warning(f"No news articles found for {symbol}")
-            return news[:5]  # Return the top 5 news articles
-        except Exception as e:
-            st.warning(f"Error fetching news for {symbol}: {e}")
-            return []
+            # Fetch news articles for the selected stock
+            news_articles = fetch_news_articles(symbol)
+            st.write(f'### News for {symbol}:')
+            if news_articles:
+                for article in news_articles:
+                    st.write(f"**Title:** {article['title']}\n**Link:** [Read more]({article['link']})\n")
+            else:
+                st.write("No news articles found.")
 
-    # Fetch and display news articles
-    for stock, data, returns in recommended_stocks:
-        news_articles = fetch_news_articles(stock)
-        st.write(f'### News for {stock}:')
-        if news_articles:
-            for article in news_articles:
-                st.write(f"**Title:** {article['title']}\n**Link:** {article['link']}\n")
-        else:
-            st.write("No news articles found.")
+    # Allow users to download recommended stocks as CSV
+    if st.button('Download Recommended Stocks'):
+        df_recommended = pd.DataFrame(recommended_stocks, columns=['Symbol', 'Data', 'Predicted Returns'])
+        df_recommended['Market Cap'] = df_recommended['Data'].apply(lambda x: x.get('marketCap', 'N/A'))
+        df_recommended['Industry'] = df_recommended['Data'].apply(lambda x: x.get('industry', 'N/A'))
+        df_recommended.drop(columns=['Data'], inplace=True)
+        df_recommended.to_csv('recommended_stocks.csv', index=False)
+        st.success('Recommended stocks have been downloaded!')
 
-    # Plot predicted returns
-    def plot_predicted_returns(recommended_stocks, model, live_data_sp500, le):
-        plt.figure(figsize=(14, 7))
-        plotted = False
+    # Plot predicted returns using Plotly
+    def plot_predicted_returns(recommended_stocks, model, live_data_sp500):
+        predictions = []
         for symbol, data, returns in recommended_stocks:
-            try:
-                if symbol in live_data_sp500:
-                    input_data = pd.DataFrame([live_data_sp500[symbol]])
-                    input_data = input_data[['Close', 'High', 'Low', 'Open', 'Volume']]
-                    predicted_returns = model.predict(input_data)
-                    plt.plot(predicted_returns, label=symbol)
-                    plotted = True
-            except Exception as e:
-                st.warning(f"Error plotting for {symbol}: {e}")
-                continue
-        plt.title('Predicted Returns for Recommended Stocks')
-        plt.xlabel('Stock Symbols')
-        plt.ylabel('Predicted Returns')
-        plt.legend()
-        plt.grid()
-        if plotted:
-            st.pyplot()
+            if symbol in live_data_sp500:
+                input_data = pd.DataFrame([live_data_sp500[symbol]])
+                input_data = input_data[['Close', 'High', 'Low', 'Open', 'Volume']]
+                predicted_returns = model.predict(input_data)
+                predictions.append({'Stock Symbol': symbol, 'Predicted Returns': predicted_returns[0]})
+        
+        predictions_df = pd.DataFrame(predictions)
+        fig = px.bar(predictions_df, x='Stock Symbol', y='Predicted Returns', title='Predicted Returns for Recommended Stocks', color='Predicted Returns', color_continuous_scale='Viridis')
+        st.plotly_chart(fig)
 
-    # Plot cumulative returns for recommended stocks
-    def plot_cumulative_returns(recommended_stocks):
-        plt.figure(figsize=(14, 7))
-        for symbol, data, returns in recommended_stocks:
-            cumulative_return = (1 + returns) ** (1 / time) - 1
-            plt.plot(cumulative_return, label=symbol)
-        plt.title('Cumulative Returns for Recommended Stocks')
-        plt.xlabel('Time (weeks)')
-        plt.ylabel('Cumulative Returns')
-        plt.legend()
-        plt.grid()
-        st.pyplot()
+    plot_predicted_returns(recommended_stocks, final_rf_regressor, live_data_sp500)
 
-    # Calculate Sharpe ratios for recommended stocks
-    def calculate_sharpe_ratio(recommended_stocks):
-        sharpe_ratios = {}
-        for symbol, data, returns in recommended_stocks:
-            risk_free_rate = 0.01  # Assume a constant risk-free rate
-            sharpe_ratio = (returns - risk_free_rate) / np.std(returns)
-            sharpe_ratios[symbol] = sharpe_ratio
-        return sharpe_ratios
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-    # Perform Monte Carlo simulation for portfolio returns
-    def monte_carlo_simulation(recommended_stocks, num_simulations=1000):
-        results = []
-        for _ in range(num_simulations):
-            weights = np.random.rand(len(recommended_stocks))
-            weights /= np.sum(weights)  # Normalize to sum to 1
-            portfolio_return = np.sum([data[2] * weight for data, weight in zip(recommended_stocks, weights)])
-            results.append(portfolio_return)
-        return results
+# Function to perform Monte Carlo simulations
+def monte_carlo_simulation(stock_price, mu, sigma, num_simulations=1000, time_horizon=30):
+    simulation_results = np.zeros((time_horizon, num_simulations))
+    
+    for i in range(num_simulations):
+        daily_returns = np.random.normal(mu, sigma, time_horizon)
+        price_paths = stock_price * np.exp(np.cumsum(daily_returns))
+        simulation_results[:, i] = price_paths
+    
+    return simulation_results
 
-    # Run and plot Monte Carlo simulation results
-    st.subheader('Monte Carlo Simulation Results')
-    simulated_portfolios = monte_carlo_simulation(recommended_stocks)
+# Function to plot Monte Carlo simulations
+def plot_monte_carlo_simulation(simulations, stock_symbol):
     plt.figure(figsize=(14, 7))
-    plt.hist(simulated_portfolios, bins=50, alpha=0.7)
-    plt.title('Monte Carlo Simulation of Portfolio Returns')
-    plt.xlabel('Returns')
-    plt.ylabel('Frequency')
-    st.pyplot()
+    plt.plot(simulations, color='blue', alpha=0.1)
+    plt.title(f'Monte Carlo Simulations for {stock_symbol}')
+    plt.xlabel('Days')
+    plt.ylabel('Price')
+    
+    # Plot mean and confidence intervals
+    plt.plot(np.mean(simulations, axis=1), color='red', label='Mean Price Path')
+    plt.fill_between(range(simulations.shape[0]), 
+                     np.percentile(simulations, 1, axis=1), 
+                     np.percentile(simulations, 99, axis=1), 
+                     color='gray', alpha=0.3, label='1-99% Confidence Interval')
+    
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+# Function to run Monte Carlo simulations for the selected stocks
+def run_monte_carlo_for_selected_stocks(recommended_stocks, num_simulations=1000, time_horizon=30):
+    for symbol, data, returns in recommended_stocks:
+        try:
+            # Fetch historical data for Monte Carlo simulation
+            stock_data = yf.download(symbol, period='1y')
+            last_price = stock_data['Adj Close'][-1]
+            log_returns = np.log(stock_data['Adj Close'] / stock_data['Adj Close'].shift(1)).dropna()
+            mu = log_returns.mean()
+            sigma = log_returns.std()
+
+            # Run simulations
+            simulations = monte_carlo_simulation(last_price, mu, sigma, num_simulations, time_horizon)
+
+            # Plot results
+            plot_monte_carlo_simulation(simulations, symbol)
+
+        except Exception as e:
+            st.warning(f"Error in running Monte Carlo simulation for {symbol}: {e}")
+
+# Include this block in your Streamlit app where you want to run the Monte Carlo simulations
+if st.button('Run Monte Carlo Simulations'):
+    run_monte_carlo_for_selected_stocks(recommended_stocks)
