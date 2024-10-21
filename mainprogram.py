@@ -79,13 +79,13 @@ if st.button('Predict Stocks'):
             target = historical_data['Adj Close']
 
             # Split data into train and test sets
-            X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.5, random_state=42)
+            X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
-            # Create and train Random Forest Regressor
+    # Create and train Random Forest Regressor
             rf_regressor = RandomForestRegressor(n_estimators=100, random_state=42)
             rf_regressor.fit(X_train, y_train)
-
-            # Predict on the test set and calculate mean squared error
+        
+    # Predict on the test set and calculate mean squared error
             y_pred = rf_regressor.predict(X_test)
             mse = mean_squared_error(y_test, y_pred)
             st.write("Mean Squared Error on Test Set: ", mse)
