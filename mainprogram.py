@@ -62,7 +62,13 @@ if st.button('Predict Stocks'):
             historical_data['year'] = historical_data.index.year
             historical_data['month'] = historical_data.index.month
             historical_data['day'] = historical_data.index.day
-            historical_data = historical_data.dropna(subset=['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume'])
+
+            # Check which columns are available
+            required_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
+            available_columns = [col for col in required_columns if col in historical_data.columns]
+
+            # Drop rows with NaN in available columns
+            historical_data = historical_data.dropna(subset=available_columns)
 
             # Check if the DataFrame is empty after dropping NaNs
             if historical_data.empty:
@@ -73,7 +79,7 @@ if st.button('Predict Stocks'):
                 historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
 
                 # Define features and target variable
-                features = historical_data[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']]
+                features = historical_data[['symbol_encoded', 'year', 'month', 'day'] + available_columns]
                 target = historical_data['Close']
 
                 # Split data into train and test sets
@@ -116,7 +122,7 @@ if st.button('Predict Stocks'):
                     prepared_df['symbol_encoded'] = le.transform(prepared_df['symbol'])
 
                     # Define features for prediction
-                    features = prepared_df[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Volume']]
+                    features = prepared_df[['symbol_encoded', 'year', 'month', 'day'] + available_columns]
                     predicted_returns = model.predict(features)
 
                     # Add the predicted returns to the DataFrame
@@ -143,13 +149,12 @@ if st.button('Predict Stocks'):
                                 # Placeholder for beta; should be fetched from stock_info or a reliable source
                                 data['beta'] = np.random.uniform(0.5, 2.0)  # Example: Randomly generated beta for illustration
 
-                                # Calculate the amount to invest based on the predicted returns
                                 if risk_percentage < 33 and data['beta'] < 1:
-                                    recommended_stocks.append((symbol, data, predicted_return, 0.5 * money))  # 50% of total money
+                                    recommended_stocks.append((symbol, data, predicted_return))
                                 elif 33 <= risk_percentage < 66 and 1 <= data['beta'] < 1.5:
-                                    recommended_stocks.append((symbol, data, predicted_return, 0.3 * money))  # 30% of total money
+                                    recommended_stocks.append((symbol, data, predicted_return))
                                 elif risk_percentage >= 66 and data['beta'] >= 1.5:
-                                    recommended_stocks.append((symbol, data, predicted_return, 0.2 * money))  # 20% of total money
+                                    recommended_stocks.append((symbol, data, predicted_return))
                         except Exception as e:
                             st.warning(f"Error processing {symbol}: {e}")
                             continue
@@ -163,11 +168,16 @@ if st.button('Predict Stocks'):
 
                 # Print recommended stocks and reasons for selection
                 st.write('\nRecommended Stocks:')
-                for symbol, data, returns, amount in recommended_stocks:
+                investment_distribution = {}
+                for symbol, data, returns in recommended_stocks:
                     st.write(f"\nSymbol: {symbol}")
                     st.write(f"Volatility (Beta): {data.get('beta', 'N/A')}")
                     st.write(f"Predicted Return: {returns:.2f}")
-                    st.write(f"Suggested Investment Amount: ${amount:.2f}")
+                    
+                    # Calculate investment amount based on predicted return
+                    investment_amount = (returns / sum([r[2] for r in recommended_stocks])) * money
+                    investment_distribution[symbol] = investment_amount
+                    st.write(f"Recommended Investment: ${investment_amount:.2f}")
 
                     # Monte Carlo simulations
                     def monte_carlo_simulation(symbol, initial_price, predicted_return, volatility, days=30, simulations=1000):
@@ -180,7 +190,23 @@ if st.button('Predict Stocks'):
 
                         return price_paths
 
-                    # Assuming some volatility for simulation; in practice, fetch this data
-                    volatility = np.random.uniform(0.1, 0.5)  # Placeholder volatility
+                    # Assuming some volatility for simulation; in practice, fetch real data
+                    volatility = np.random.uniform(0.1, 0.2)  # Example: Random volatility
                     initial_price = data['previousClose']
-                    simulated_prices = monte_carlo_sim
+                    simulated_paths = monte_carlo_simulation(symbol, initial_price, returns, volatility)
+
+                    # Create plot
+                    fig = go.Figure()
+                    for i in range(simulated_paths.shape[1]):
+                        fig.add_trace(go.Scatter(x=np.arange(simulated_paths.shape[0]), y=simulated_paths[:, i], mode='lines', 
+                                                  line=dict(width=0.5, opacity=0.6), name=f'Simulation {i + 1}'))
+                    
+                    fig.update_layout(title=f'Monte Carlo Simulation for {symbol}', xaxis_title='Days', yaxis_title='Price', showlegend=False)
+                    st.plotly_chart(fig)
+
+                st.write("Investment Distribution:", investment_distribution)
+
+        else:
+            st.error("No historical data available for the selected stocks.")
+    else:
+        st.error("Could not retrieve S&P 500 companies.")
