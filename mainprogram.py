@@ -160,12 +160,12 @@ if st.button('Predict Stocks'):
                     st.warning(f"Error processing {symbol}: {e}")
                     continue
 
+                    # Recommend stocks based on predicted returns and risk percentage
+            recommended_stocks = recommend_stocks(live_data_sp500, predicted_returns, risk_percentage, money, top_n=5)
+
             # Sort the recommended stocks by predicted returns in descending order and select the top N
             recommended_stocks.sort(key=lambda x: x[2], reverse=True)
             return recommended_stocks[:top_n]
-
-        # Recommend stocks based on predicted returns and risk percentage
-        recommended_stocks = recommend_stocks(live_data_sp500, predicted_returns, risk_percentage, money, top_n=5)
 
         # Print recommended stocks and reasons for selection
         st.write('\nRecommended Stocks:')
