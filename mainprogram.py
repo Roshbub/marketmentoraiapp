@@ -210,7 +210,7 @@ if st.button('Predict Stocks'):
 
                     st.write("Investment Distribution:", investment_distribution)
 
-                else:
-                    st.error("No historical data available for the selected stocks.")
+            else:
+                st.error("No historical data available for the selected stocks.")
         else:
             st.error("Could not retrieve S&P 500 companies.")
