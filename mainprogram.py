@@ -36,7 +36,7 @@ if st.button('Predict Stocks'):
         st.error(f"Error fetching S&P 500 companies: {e}")
         tickers = pd.DataFrame()
 
-    if not tickers.empty:
+        if not tickers.empty:
         # Function to get historical data for companies
         # Function to get historical data for companies
 def prepare_data(tickers, period):
