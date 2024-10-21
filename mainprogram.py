@@ -66,7 +66,21 @@ if st.button('Predict Stocks'):
             # Dynamic column handling - only use available columns
             feature_columns = [col for col in historical_data.columns if col not in ['Symbol', 'year', 'month', 'day']]
             feature_columns = [col for col in feature_columns if historical_data[col].dtype in [np.float64, np.int64]]  # Use only numeric columns
-        
+            # Check available columns
+            st.write("Available columns in historical data:", historical_data.columns.tolist())
+            required_columns = ['Symbol', 'year', 'month', 'day'] + feature_columns
+            missing_columns = [col for col in required_columns if col not in historical_data.columns]
+
+            if missing_columns:
+                st.error(f"Missing columns in historical data: {missing_columns}")
+            else:
+                # Label encode the stock symbols
+                le = LabelEncoder()
+                historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
+
+                # Define features and target variable
+                features = historical_data[['symbol_encoded', 'year', 'month', 'day'] + feature_columns]
+                target = historical_data['Close']  # Assuming 'Close' is present
             # Debug output: Display count of missing values in each column
             st.write("Missing values count:", historical_data.isnull().sum())
             
