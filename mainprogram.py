@@ -77,10 +77,7 @@ if st.button('Predict Stocks'):
                 historical_data = historical_data.dropna(thresh=5)  # Drop rows with 5 or more NaNs
                 historical_data['Volume'].fillna(0, inplace=True) # Fill NaN values in 'Volume' with 0
 
-                # Check if the DataFrame is empty after dropping NaNs
-                if historical_data.empty:
-                    st.error("DataFrame is empty after dropping NaNs. Please check the data.")
-                else:
+        
                     # Label encode the stock symbols
                     le = LabelEncoder()
                     historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
