@@ -195,7 +195,4 @@ if st.button('Predict Stocks'):
                     fig.update_layout(title='Predicted Stock Returns', xaxis_title='Stock Symbol', yaxis_title='Predicted Return (%)')
                     st.plotly_chart(fig)
 
-                else:
-                    st.error("No data to display after processing.")
-        else:
-            st.error("Historical data not available. Please check your settings.")
+                
