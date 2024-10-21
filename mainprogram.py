@@ -1,17 +1,13 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
-from yahoo_fin import stock_info
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split, RandomizedSearchCV
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import mean_squared_error
 import numpy as np
 import plotly.graph_objects as go
 from tqdm import tqdm
-from textblob import TextBlob
-from pypfopt.efficient_frontier import EfficientFrontier
-from pypfopt import risk_models, expected_returns
 
 # Title of the app
 st.title('Interactive Stock Predictor App')
@@ -25,10 +21,6 @@ returns = st.number_input('Enter expected returns (1-100):', min_value=1.0, max_
 # User input for historical period using a dropdown menu
 valid_periods = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
 historical_period = st.selectbox('Select historical data period:', valid_periods)
-
-# Validate risk percentage input
-if not (0 <= risk_percentage <= 100):
-    st.error('Invalid input for risk percentage. Please enter a value between 0 and 100.')
 
 # Create a DataFrame with the user input
 user_data = pd.DataFrame({
@@ -60,6 +52,7 @@ if st.button('Predict Stocks'):
                             historical_data.append(stock_data)
                     except Exception as e:
                         st.warning(f"Could not download data for {symbol}: {e}")
+
             if historical_data:
                 return pd.concat(historical_data)
             else:
@@ -69,57 +62,39 @@ if st.button('Predict Stocks'):
         # Prepare historical data
         historical_data = prepare_data(tickers, historical_period)
 
-        # Feature engineering
-        historical_data['year'] = historical_data.index.year
-        historical_data['month'] = historical_data.index.month
-        historical_data['day'] = historical_data.index.day
-        historical_data = historical_data.dropna()
+        # Check if historical data is empty
+        if historical_data.empty:
+            st.error("No historical data available. Please try a different period or check the input.")
+        else:
+            # Feature engineering
+            historical_data['year'] = historical_data.index.year
+            historical_data['month'] = historical_data.index.month
+            historical_data['day'] = historical_data.index.day
+            historical_data = historical_data.dropna()
 
-        # Label encode the stock symbols
-        le = LabelEncoder()
-        historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
+            # Label encode the stock symbols
+            le = LabelEncoder()
+            historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
 
-        # Define features and target variable
-        features = historical_data[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Volume']]
-        target = historical_data['Adj Close']
+            # Define features and target variable
+            features = historical_data[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Volume']]
+            target = historical_data['Adj Close']
 
-        # Split data into train and test sets
-        X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
+            # Ensure that features and target are valid
+            if features.empty or target.empty:
+                st.error("Features or target data is empty. Unable to proceed with model training.")
+            else:
+                # Split data into train and test sets
+                X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
-        # Use a subset of the data for hyperparameter tuning
-        X_train_subset, _, y_train_subset, _ = train_test_split(X_train, y_train, train_size=0.2, random_state=42)
+                # Create and train Random Forest Regressor
+                rf_regressor = RandomForestRegressor(n_estimators=100, random_state=42)
+                rf_regressor.fit(X_train, y_train)
 
-        # Create a Random Forest Regressor
-        rf_regressor = RandomForestRegressor()
-
-        # Define hyperparameters for randomized search
-        param_grid = {
-            'n_estimators': [50, 100, 200],
-            'max_depth': [None, 10, 20],
-            'min_samples_split': [2, 5, 10],
-            'min_samples_leaf': [1, 2, 4]
-        }
-
-        # Perform randomized search for hyperparameter tuning
-        random_search = RandomizedSearchCV(rf_regressor, param_distributions=param_grid, n_iter=50, cv=5,
-                                           scoring='neg_mean_squared_error', n_jobs=-1, random_state=42)
-        random_search.fit(X_train_subset, y_train_subset)
-
-        # Output the best parameters and score
-        best_params = random_search.best_params_
-        best_score = random_search.best_score_
-        st.write("Best Parameters: ", best_params)
-        st.write("Best Score: ", best_score)
-
-        # Train the final model using the best parameters found
-        final_rf_regressor = RandomForestRegressor(**best_params)
-        final_rf_regressor.fit(X_train, y_train)
-
-        # Predict on the test set and calculate mean squared error
-        y_pred = final_rf_regressor.predict(X_test)
-        mse = mean_squared_error(y_test, y_pred)
-        st.write("Mean Squared Error on Test Set: ", mse)
-
+                # Predict on the test set and calculate mean squared error
+                y_pred = rf_regressor.predict(X_test)
+                mse = mean_squared_error(y_test, y_pred)
+                st.write("Mean Squared Error on Test Set: ", mse)
         # Function to predict stock investment
         def predict_stock_investment(model, live_data, le):
             prepared_data = []
