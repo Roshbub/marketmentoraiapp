@@ -7,4 +7,4 @@ matplotlib
 seaborn
 tqdm
 statsmodels
-pypfopt
+PyPortfolioOpt
