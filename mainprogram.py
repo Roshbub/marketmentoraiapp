@@ -8,6 +8,64 @@ from sklearn.metrics import mean_squared_error
 import numpy as np
 import plotly.graph_objects as go
 from tqdm import tqdm
+# Title of the app
+st.title('Interactive Stock Predictor App')
+
+# User input for investment details
+money = st.number_input('Enter the amount of money:', min_value=0.0, value=1000.0)
+time = st.number_input('Enter the time in weeks:', min_value=1, value=4)
+risk_percentage = st.number_input('Enter risk percentage (0-100):', min_value=0.0, max_value=100.0, value=50.0)
+returns = st.number_input('Enter expected returns (1-100):', min_value=1.0, max_value=100.0, value=10.0)
+
+# User input for historical period using a dropdown menu
+valid_periods = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
+historical_period = st.selectbox('Select historical data period:', valid_periods)
+
+# Function to get historical data for companies
+# Define prepare_data before the if st.button('Predict Stocks'): block
+def prepare_data(tickers, period):
+    historical_data = []
+    with st.spinner('Downloading historical data...'):
+        for symbol in tqdm(tickers['Symbol'], desc="Downloading historical data"):
+            try:
+                stock_data = yf.download(symbol, period=period)
+                if not stock_data.empty:
+                    stock_data['Symbol'] = symbol
+                    historical_data.append(stock_data)
+            except Exception as e:
+                st.warning(f"Could not download data for {symbol}: {e}")
+
+    if historical_data:
+        return pd.concat(historical_data)
+    else:
+        st.error("No historical data was fetched. Please check the input or try again.")
+        return pd.DataFrame()
+
+# Button to fetch data and make predictions
+if st.button('Predict Stocks'):
+    # Initialize tickers to an empty DataFrame
+    tickers = pd.DataFrame()  # Define tickers before the try-except block
+    try:
+        # Fetch the list of S&P 500 companies
+        tickers = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
+    except Exception as e:
+        st.error(f"Error fetching S&P 500 companies: {e}")
+
+    # Check if tickers DataFrame is not empty after try-except
+    if not tickers.empty:
+        # Prepare historical data
+        # Now prepare_data is defined and accessible
+        historical_data = prepare_data(tickers, historical_period)
+
+        # Check if historical data is empty
+        if not historical_data.empty:
+            # Feature engineering
+            historical_data['year'] = historical_data.index.year
+            historical_data['month'] = historical_data.index.month
+            historical_data['day'] = historical_data.index.day
+            historical_data = historical_data.dropna()
+            # Label encode the stock symbols
+
 
 # Title of the app
 st.title('Interactive Stock Predictor App')
@@ -22,44 +80,40 @@ returns = st.number_input('Enter expected returns (1-100):', min_value=1.0, max_
 valid_periods = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
 historical_period = st.selectbox('Select historical data period:', valid_periods)
 
-# Create a DataFrame with the user input
-user_data = pd.DataFrame({
-    'money': [money],
-    'time': [time],
-    'risk_percentage': [risk_percentage],
-    'returns': [returns]
-})
+# Function to get historical data for companies
+# Define prepare_data before the if st.button('Predict Stocks'): block
+def prepare_data(tickers, period):
+    historical_data = []
+    with st.spinner('Downloading historical data...'):
+        for symbol in tqdm(tickers['Symbol'], desc="Downloading historical data"):
+            try:
+                stock_data = yf.download(symbol, period=period)
+                if not stock_data.empty:
+                    stock_data['Symbol'] = symbol
+                    historical_data.append(stock_data)
+            except Exception as e:
+                st.warning(f"Could not download data for {symbol}: {e}")
+
+    if historical_data:
+        return pd.concat(historical_data)
+    else:
+        st.error("No historical data was fetched. Please check the input or try again.")
+        return pd.DataFrame()
 
 # Button to fetch data and make predictions
 if st.button('Predict Stocks'):
-    # Fetch the list of S&P 500 companies
+    # Initialize tickers to an empty DataFrame
+    tickers = pd.DataFrame()  # Define tickers before the try-except block
     try:
+        # Fetch the list of S&P 500 companies
         tickers = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
     except Exception as e:
         st.error(f"Error fetching S&P 500 companies: {e}")
-        tickers = pd.DataFrame()
 
+    # Check if tickers DataFrame is not empty after try-except
     if not tickers.empty:
-        # Function to get historical data for companies
-        def prepare_data(tickers, period):
-            historical_data = []
-            with st.spinner('Downloading historical data...'):
-                for symbol in tqdm(tickers['Symbol'], desc="Downloading historical data"):
-                    try:
-                        stock_data = yf.download(symbol, period=period)
-                        if not stock_data.empty:
-                            stock_data['Symbol'] = symbol
-                            historical_data.append(stock_data)
-                    except Exception as e:
-                        st.warning(f"Could not download data for {symbol}: {e}")
-
-            if historical_data:
-                return pd.concat(historical_data)
-            else:
-                st.error("No historical data was fetched. Please check the input or try again.")
-                return pd.DataFrame()
-
         # Prepare historical data
+        # Now prepare_data is defined and accessible
         historical_data = prepare_data(tickers, historical_period)
 
         # Check if historical data is empty
@@ -75,13 +129,11 @@ if st.button('Predict Stocks'):
             historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
 
             # Define features and target variable
-            features = historical_data[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Volume']]
-            target = historical_data['Adj Close']
-
+            features = historical_data[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']]
+            target = historical_data['Close']
             # Split data into train and test sets
             X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
-
-    # Create and train Random Forest Regressor
+ # Create and train Random Forest Regressor
             rf_regressor = RandomForestRegressor(n_estimators=100, random_state=42)
             rf_regressor.fit(X_train, y_train)
         
@@ -107,7 +159,7 @@ if st.button('Predict Stocks'):
                         st.warning(f"Could not process data for {symbol}: {e}")
                         continue
 
-                # Convert to DataFrame
+           # Convert to DataFrame
                 prepared_df = pd.DataFrame(prepared_data)
                 prepared_df['year'] = pd.to_datetime('now').year
                 prepared_df['month'] = pd.to_datetime('now').month
@@ -197,4 +249,4 @@ if st.button('Predict Stocks'):
             st.error("No historical data available for prediction.")
     else:
         st.error("Could not fetch S&P 500 companies.")
-
+                
