@@ -81,26 +81,7 @@ if st.button('Predict Stocks'):
                 # Define features and target variable
                 features = historical_data[['symbol_encoded', 'year', 'month', 'day'] + feature_columns]
                 target = historical_data['Close']  # Assuming 'Close' is present
-            # Debug output: Display count of missing values in each column
-            st.write("Missing values count:", historical_data.isnull().sum())
             
-            # Ensure all required columns exist before dropping NaNs
-            required_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
-            missing_columns = [col for col in required_columns if col not in historical_data.columns]
-            if missing_columns:
-                st.error(f"Missing required columns: {missing_columns}")
-            else:
-           # Check if the DataFrame is empty after dropping NaNs
-                if historical_data.empty:
-                    st.error("DataFrame is empty after dropping NaNs. Please check the data.")
-                else:
-                    # Label encode the stock symbols
-                    le = LabelEncoder()
-                    historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
-
-                    # Define features and target variable
-                    features = historical_data[['symbol_encoded', 'year', 'month', 'day'] + feature_columns]
-                    target = historical_data['Close']  # Assuming 'Close' will always be there for the target variable
 # Split data into train and test sets
 X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
