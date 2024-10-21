@@ -41,18 +41,53 @@ if st.button('Predict Stocks'):
         return live_data_for_companies
 
     # Prepare historical data for model training
-    def prepare_data(tickers):
-        historical_data = []
-        for symbol in tqdm(tickers['Symbol']):
-            try:
-                stock_data = yf.download(symbol, period='3mo')
-                stock_data['Symbol'] = symbol  
-                historical_data.append(stock_data)
-            except Exception as e:
-                st.warning(f"Could not download data for {symbol}: {e}")
-        historical_df = pd.concat(historical_data) if historical_data else pd.DataFrame()
-        st.write("Historical Data Shape:", historical_df.shape)  # Debugging line
+    # Fetch historical data for model training
+def prepare_data(tickers):
+    historical_data = []
+    for symbol in tqdm(tickers['Symbol']):
+        try:
+            stock_data = yf.download(symbol, period='3mo')
+            if stock_data.empty:
+                st.warning(f"No historical data found for {symbol}.")
+                continue
+            stock_data['Symbol'] = symbol  
+            historical_data.append(stock_data)
+        except Exception as e:
+            st.warning(f"Could not download data for {symbol}: {e}")
+
+    historical_df = pd.concat(historical_data) if historical_data else pd.DataFrame()
+    if historical_df.empty:
+        st.error("No historical data retrieved. Please check the ticker symbols or your internet connection.")
         return historical_df
+
+    return historical_df
+
+# In the function that processes live data
+def predict_stock_investment(model, live_data, le):
+    prepared_data = []
+    for symbol, data in live_data.items():
+        try:
+            if all(k in data for k in ['open', 'dayHigh', 'dayLow', 'previousClose']):
+                prepared_data.append({
+                    'symbol': symbol,
+                    'Open': data['open'],
+                    'High': data['dayHigh'],
+                    'Low': data['dayLow'],
+                    'Close': data['previousClose'],
+                    'Volume': data['volume']
+                })
+            else:
+                st.warning(f"Missing data for {symbol}, skipping...")
+        except Exception as e:
+            st.warning(f"Error processing data for {symbol}: {e}")
+    
+    if not prepared_data:
+        st.error("No valid live data available for prediction.")
+        return pd.Series()  # Return an empty series or handle as necessary
+
+    prepared_df = pd.DataFrame(prepared_data)
+    ...
+
 
     historical_data = prepare_data(tickers)
 
