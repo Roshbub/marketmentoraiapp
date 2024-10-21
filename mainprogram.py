@@ -67,8 +67,11 @@ if st.button('Predict Stocks'):
             required_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
             available_columns = [col for col in required_columns if col in historical_data.columns]
 
-            # Drop rows with NaN in available columns
-            historical_data = historical_data.dropna(subset=available_columns)
+            # Only drop NaNs from columns that are available
+            if available_columns:
+                historical_data = historical_data.dropna(subset=available_columns)
+            else:
+                st.warning("No required columns are available in the historical data. Cannot proceed with analysis.")
 
             # Check if the DataFrame is empty after dropping NaNs
             if historical_data.empty:
@@ -187,10 +190,10 @@ if st.button('Predict Stocks'):
                         for t in range(1, days):
                             random_returns = np.random.normal(predicted_return / 100, volatility / 100, simulations)
                             price_paths[t] = price_paths[t - 1] * (1 + random_returns)
-
+                        
                         return price_paths
 
-                    # Assuming some volatility for simulation; in practice, fetch real data
+                    # Assume volatility is known or estimated
                     volatility = np.random.uniform(0.1, 0.2)  # Example: Random volatility
                     initial_price = data['previousClose']
                     simulated_paths = monte_carlo_simulation(symbol, initial_price, returns, volatility)
@@ -200,7 +203,7 @@ if st.button('Predict Stocks'):
                     for i in range(simulated_paths.shape[1]):
                         fig.add_trace(go.Scatter(x=np.arange(simulated_paths.shape[0]), y=simulated_paths[:, i], mode='lines', 
                                                   line=dict(width=0.5, opacity=0.6), name=f'Simulation {i + 1}'))
-                    
+
                     fig.update_layout(title=f'Monte Carlo Simulation for {symbol}', xaxis_title='Days', yaxis_title='Price', showlegend=False)
                     st.plotly_chart(fig)
 
