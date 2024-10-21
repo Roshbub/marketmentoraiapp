@@ -46,13 +46,16 @@ if st.button('Predict Stocks'):
         for symbol in tqdm(tickers['Symbol']):
             try:
                 stock_data = yf.download(symbol, period='3mo')
-                stock_data['Symbol'] = symbol
+                stock_data['Symbol'] = symbol  
                 historical_data.append(stock_data)
             except Exception as e:
                 st.warning(f"Could not download data for {symbol}: {e}")
-        return pd.concat(historical_data)
+        historical_df = pd.concat(historical_data) if historical_data else pd.DataFrame()
+        st.write("Historical Data Shape:", historical_df.shape)  # Debugging line
+        return historical_df
 
     historical_data = prepare_data(tickers)
+
 
     # Feature engineering
     historical_data['year'] = historical_data.index.year
@@ -67,6 +70,28 @@ if st.button('Predict Stocks'):
     # Define features and target variable
     features = historical_data[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Volume']]
     target = historical_data['Adj Close']
+    if historical_data.empty:
+        st.error("No historical data retrieved. Please check the ticker symbols or your internet connection.")
+    else:
+    # Feature engineering
+        historical_data['year'] = historical_data.index.year
+        historical_data['month'] = historical_data.index.month
+        historical_data['day'] = historical_data.index.day
+        historical_data.dropna(inplace=True)
+
+    # Label encode the stock symbols
+    le = LabelEncoder()
+    historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
+
+    # Define features and target variable
+    features = historical_data[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Volume']]
+    target = historical_data['Adj Close']
+
+    if features.empty or target.empty:
+        st.error("Feature or target data is empty. Check the historical data for issues.")
+    else:
+        # Split data into train and test sets
+        X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
 
     # Split data into train and test sets
     X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
