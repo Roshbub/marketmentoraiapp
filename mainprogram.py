@@ -67,17 +67,22 @@ if st.button('Predict Stocks'):
             feature_columns = [col for col in historical_data.columns if col not in ['Symbol', 'year', 'month', 'day']]
             feature_columns = [col for col in feature_columns if historical_data[col].dtype in [np.float64, np.int64]]  # Use only numeric columns
 
-            # Check if we have any feature columns available
-            if not feature_columns:
-                st.warning("No suitable feature columns available in the historical data.")
+            # Debug output: Display count of missing values in each column
+            st.write("Missing values count:", historical_data.isnull().sum())
+            
+            # Ensure all required columns exist before dropping NaNs
+            required_columns = ['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']
+            missing_columns = [col for col in required_columns if col not in historical_data.columns]
+            if missing_columns:
+                st.error(f"Missing required columns: {missing_columns}")
             else:
-                # Drop NaNs from the available feature columns
-                st.write(historical_data.isnull().sum())  # Display count of missing values in each column
-                historical_data = historical_data.dropna(subset=['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume'])
-                historical_data = historical_data.dropna(thresh=5)  # Drop rows with 5 or more NaNs
-                historical_data['Volume'].fillna(0, inplace=True) # Fill NaN values in 'Volume' with 0
+                # Drop NaNs from the required columns
+                historical_data = historical_data.dropna(subset=required_columns)
 
-        
+                # Check if the DataFrame is empty after dropping NaNs
+                if historical_data.empty:
+                    st.error("DataFrame is empty after dropping NaNs. Please check the data.")
+                else:
                     # Label encode the stock symbols
                     le = LabelEncoder()
                     historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
@@ -141,7 +146,7 @@ if st.button('Predict Stocks'):
 
                     # Predict returns using the machine learning model
                     predicted_returns = predict_stock_investment(rf_regressor, live_data_sp500, le)
-                    st.write(predicted_returns)
+                    st.write("Predicted Returns:", predicted_returns)
 
                     # Function to recommend stocks based on predicted returns and risk percentage
                     def recommend_stocks(live_data_sp500, predicted_returns, risk_percentage, money, top_n=5):
@@ -176,38 +181,21 @@ if st.button('Predict Stocks'):
                     for symbol, data, returns in recommended_stocks:
                         st.write(f"\nSymbol: {symbol}")
                         st.write(f"Volatility (Beta): {data.get('beta', 'N/A')}")
-                        st.write(f"Predicted Return: {returns:.2f}")
+                        st.write(f"Predicted Returns: {returns:.2f}%")
+                        investment = (returns / 100) * money
+                        investment_distribution[symbol] = investment
+                        st.write(f"Recommended Investment: ${investment:.2f}")
 
-                        # Calculate investment amount based on predicted return
-                        investment_amount = (returns / sum([r[2] for r in recommended_stocks])) * money
-                        investment_distribution[symbol] = investment_amount
-                        st.write(f"Recommended Investment: ${investment_amount:.2f}")
+                    st.write(f"\nInvestment Distribution: {investment_distribution}")
 
-                        # Monte Carlo simulations
-                        def monte_carlo_simulation(symbol, initial_price, predicted_return, volatility, days=30, simulations=1000):
-                            price_paths = np.zeros((days, simulations))
-                            price_paths[0] = initial_price
+                    # Create a plot for predicted returns
+                    fig = go.Figure(data=[
+                        go.Bar(name='Predicted Returns', x=predicted_returns.index, y=predicted_returns.values)
+                    ])
+                    fig.update_layout(title='Predicted Stock Returns', xaxis_title='Stock Symbol', yaxis_title='Predicted Return (%)')
+                    st.plotly_chart(fig)
 
-                            for t in range(1, days):
-                                random_returns = np.random.normal(predicted_return / 100, volatility / 100, simulations)
-                                price_paths[t] = price_paths[t - 1] * (1 + random_returns)
-
-                            return price_paths
-
-                        # Assume volatility is known or estimated
-                        volatility = np.random.uniform(0.1, 0.2)  # Example: Random volatility
-                        initial_price = data['previousClose']  # Use previousClose for the initial price
-                        simulated_paths = monte_carlo_simulation(symbol, initial_price, returns, volatility)
-
-                        # Create plot
-                        fig = go.Figure()
-                        for i in range(simulated_paths.shape[1]):
-                            fig.add_trace(go.Scatter(x=np.arange(simulated_paths.shape[0]), y=simulated_paths[:, i], mode='lines',
-                                                      line=dict(width=0.5, opacity=0.6), name=f'Simulation {i + 1}'))
-
-                        fig.update_layout(title=f'Monte Carlo Simulation for {symbol}', xaxis_title='Days', yaxis_title='Price', showlegend=False)
-                        st.plotly_chart(fig)
-
-                    st.write("Investment Distribution:", investment_distribution)
-
-           
+                else:
+                    st.error("No data to display after processing.")
+        else:
+            st.error("Historical data not available. Please check your settings.")
