@@ -75,8 +75,6 @@ if st.button('Predict Stocks'):
     # Define features and target variable
     features = historical_data[['symbol_encoded', 'year', 'month', 'day', 'Open', 'High', 'Low', 'Close', 'Volume']]
     target = historical_data['Adj Close']
-if features.empty:
-    raise ValueError("The features dataset is empty. Please check the data input.")
 
     # Split data into train and test sets
     X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
