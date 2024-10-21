@@ -5,6 +5,6 @@ scikit-learn
 textblob
 matplotlib
 seaborn
-pypfopt
+pypfopt==1.5.2
 tqdm
 statsmodels
