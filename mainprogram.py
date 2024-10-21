@@ -39,24 +39,24 @@ if st.button('Predict Stocks'):
         if not tickers.empty:
         # Function to get historical data for companies
         # Function to get historical data for companies
-def prepare_data(tickers, period):
-    historical_data = []
-    with st.spinner('Downloading historical data...'):
-        for symbol in tqdm(tickers['Symbol'], desc="Downloading historical data"):
-            try:
-                stock_data = yf.download(symbol, period=period)  # Use selected period directly
-                if not stock_data.empty:
-                    stock_data['Symbol'] = symbol
-                    historical_data.append(stock_data)
-            except Exception as e:
-                st.warning(f"Could not download data for {symbol}: {e}")
+            def prepare_data(tickers, period):
+                historical_data = []
+                with st.spinner('Downloading historical data...'):
+                    for symbol in tqdm(tickers['Symbol'], desc="Downloading historical data"):
+                        try:
+                            stock_data = yf.download(symbol, period=period)  # Use selected period directly
+                            if not stock_data.empty:
+                                stock_data['Symbol'] = symbol
+                                historical_data.append(stock_data)
+                        except Exception as e:
+                              st.warning(f"Could not download data for {symbol}: {e}")
 
-    if historical_data:
+        if historical_data:
         # Concatenate all historical data into a single DataFrame at once
         return pd.concat(historical_data)
-    else:
-        st.error("No historical data was fetched. Please check the input or try again.")
-        return pd.DataFrame()  # Return empty DataFrame
+        else:
+            st.error("No historical data was fetched. Please check the input or try again.")
+            return pd.DataFrame()  # Return empty DataFrame
 
 # Prepare historical data
 historical_data = prepare_data(tickers, historical_period)
