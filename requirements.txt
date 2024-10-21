@@ -1,0 +1,10 @@
+streamlit
+yfinance
+yahoo_fin
+scikit-learn
+textblob
+matplotlib
+seaborn
+pypfopt
+tqdm
+statsmodels
