@@ -7,7 +7,6 @@ from sklearn.model_selection import train_test_split, RandomizedSearchCV
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import mean_squared_error
 import numpy as np
-import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from tqdm import tqdm
 
@@ -198,9 +197,7 @@ if st.button('Predict Stocks'):
 
                 fig.update_layout(title='Monte Carlo Simulation Results', xaxis_title='Simulated Prices', yaxis_title='Frequency')
                 st.plotly_chart(fig)
-
             else:
                 st.warning("No predicted returns available for the stocks.")
-
-            else:
-                st.error("Feature engineering failed. Please check historical data.")
+        else:
+            st.error("Feature engineering failed. Please check historical data.")
