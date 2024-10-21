@@ -40,6 +40,7 @@ def prepare_data(tickers, period):
     else:
         st.error("No historical data was fetched. Please check the input or try again.")
         return pd.DataFrame()
+print(historical_data.columns.tolist())
 
 # Button to fetch data and make predictions
 if st.button('Predict Stocks'):
@@ -66,7 +67,7 @@ if st.button('Predict Stocks'):
             # Dynamic column handling - only use available columns
             feature_columns = [col for col in historical_data.columns if col not in ['Symbol', 'year', 'month', 'day']]
             feature_columns = [col for col in feature_columns if historical_data[col].dtype in [np.float64, np.int64]]  # Use only numeric columns
-
+            print(feature_columns.tolist())
             # Debug output: Display count of missing values in each column
             st.write("Missing values count:", historical_data.isnull().sum())
             
