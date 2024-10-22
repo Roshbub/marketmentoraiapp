@@ -141,6 +141,7 @@ if st.button('Predict Stocks'):
                     logging.warning(f"Column 'Open' not found for {symbol}: {e}")
 
         predictions = predict_stock_price(stock_tickers, historical_data)
+        st.write ("Predictions" predictions)
         recommended_stocks = []
         for symbol, (avg_return, risk) in avg_returns.items():
             predicted_return = predictions.get(symbol, {}).get('predicted_returns', 0)
