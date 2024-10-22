@@ -76,26 +76,33 @@ def monte_carlo_stats(simulations):
 # Feature engineering for machine learning model
 def prepare_features(data):
     # Identify the relevant columns dynamically
-    open_column = [col for col in data.columns if 'Open' in col][0]  
-    volume_column = [col for col in data.columns if 'Volume' in col][0]
+    open_column = [col for col in data.columns if 'Open' in col]  
+    volume_column = [col for col in data.columns if 'Volume' in col]
+
+    if not open_column or not volume_column:
+        logging.warning("Open or Volume columns are missing.")
+        return pd.DataFrame()  # Return an empty DataFrame if necessary columns are missing
+
+    open_column = open_column[0]
+    volume_column = volume_column[0]
 
     # Fill missing values
-    data = data.fillna(method='ffill')
+    data = data.ffill()  # Using forward fill directly
 
     # Calculate returns and features
-    data.loc[:, 'Return'] = data[open_column].pct_change()
-    data.loc[:, 'Lag_1'] = data['Return'].shift(1)
-    data.loc[:, 'Lag_2'] = data['Return'].shift(2)
-    data.loc[:, 'Volume_Change'] = data[volume_column].pct_change()
+    data['Return'] = data[open_column].pct_change()  # No fill_method specified
+    data['Lag_1'] = data['Return'].shift(1)
+    data['Lag_2'] = data['Return'].shift(2)
+    data['Volume_Change'] = data[volume_column].pct_change()  # No fill_method specified
 
+    # Drop NaN values created by pct_change and shifts
     data = data.dropna()
 
-    # Check if there are enough samples for training
-    if len(data) < 5:  # Change this threshold as needed
-        logging.warning(f"Not enough data to prepare features: {data.shape[0]} samples")
-        return pd.DataFrame()  # Return an empty DataFrame if not enough samples
+    # Log the shape of data after processing
+    logging.info(f"Prepared features, remaining samples: {len(data)}")
     
     return data
+
 
 
 
@@ -105,34 +112,38 @@ def predict_stock_price(tickers, historical_data):
     for symbol in tickers:
         stock_data = historical_data[historical_data['Symbol'] == symbol]
         st.write("in predict stock price, stock_data: ", stock_data)
-        #if not stock_data.empty and 'Open' in stock_data.columns:
-        if not stock_data.empty and stock_data.columns.str.contains('Open').any():
-            st.write ("stock_data is not empty", stock_data.shape)
+        
+        if not stock_data.empty and 'Open' in stock_data.columns:
             try:
                 features = prepare_features(stock_data)
-                X = features[['Lag_1', 'Lag_2', 'Volume_Change']]
+                
+                # Check if the required columns exist before proceeding
+                required_columns = ['Lag_1', 'Lag_2', 'Volume_Change']
+                if not all(col in features.columns for col in required_columns):
+                    logging.warning(f"Missing required feature columns for {symbol}. Skipping.")
+                    continue  # Skip to the next symbol if features are missing
+                
+                X = features[required_columns]
                 y = features['Return']
-                st.write("features:", features)
 
-
+                # Check if we have enough data for train-test split
+                if len(X) < 5:  # Adjust this threshold as necessary
+                    logging.warning(f"Not enough data to train model for {symbol}. Samples: {len(X)}")
+                    continue
+                
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
                 scaler = StandardScaler()
                 X_train_scaled = scaler.fit_transform(X_train)
                 X_test_scaled = scaler.transform(X_test)
 
-
                 model = RandomForestRegressor()
                 model.fit(X_train_scaled, y_train)
                 y_pred = model.predict(X_test_scaled)
 
-
                 mse = mean_squared_error(y_test, y_pred)
                 predictions[symbol] = {'predicted_returns': y_pred.mean(), 'mse': mse}
-                st.write("predictions", predictions[symbol])
             except Exception as e:
                 logging.error(f"Error predicting price for {symbol}: {e}")
-        else:
-            st.write ("stock date is empty or missing open", stock_data.shape)
     return predictions
 
 # Fetch live data for S&P 500 companies from Wikipedia
