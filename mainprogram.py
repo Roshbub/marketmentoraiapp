@@ -86,7 +86,7 @@ def predict_stock_price(tickers, historical_data):
     predictions = {}
     for symbol in tickers:
         stock_data = historical_data[historical_data['Symbol'] == symbol]
-        st.write(stock_data)
+        st.write("in predict stock price, stock_data: ", stock_data)
         if not stock_data.empty and 'Open' in stock_data.columns:
             try:
                 features = prepare_features(stock_data)
@@ -130,16 +130,16 @@ if st.button('Predict Stocks'):
         st.write("No historical data available for the selected period.")
     else:
         avg_returns = {}
-        st.write(stock_tickers)
+        st.write("Limited scope: ", stock_tickers)
         for symbol in stock_tickers:
             stock_data = historical_data[historical_data['Symbol'] == symbol]
-            st.write(stock_data)
+            st.write("stock data", stock_data)
             if not stock_data.empty:
                 try:
                     daily_returns = stock_data['Open'].pct_change().dropna()
                     avg_return = daily_returns.mean() if not daily_returns.empty else 0
                     risk = daily_returns.std() if not daily_returns.empty else 0
-                    st.write(daily_returns , avg_returns, risk)
+                    st.write("stock data is not empty retun daily_returns", daily_returns , avg_returns, risk)
                     avg_returns[symbol] = (avg_return, risk)
                 except KeyError as e:
                     logging.warning(f"Column 'Open' not found for {symbol}: {e}")
