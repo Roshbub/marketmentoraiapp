@@ -75,16 +75,17 @@ def monte_carlo_stats(simulations):
 
 # Feature engineering for machine learning model
 def prepare_features(data):
-    # Identify the relevant columns dynamically
-    open_column = [col for col in data.columns if 'Open' in col]  
-    volume_column = [col for col in data.columns if 'Volume' in col]
+    # Extract the stock symbol from the DataFrame
+    stock_symbol = data['Symbol'].iloc[0]  # Assume the first row has the symbol
 
-    if not open_column or not volume_column:
-        logging.warning("Open or Volume columns are missing.")
+    # Dynamically create column names for 'Open' and 'Volume'
+    open_column = f'Open_{stock_symbol}'
+    volume_column = f'Volume_{stock_symbol}'
+
+    # Check if the necessary columns exist
+    if open_column not in data.columns or volume_column not in data.columns:
+        logging.warning(f"Columns '{open_column}' or '{volume_column}' are missing for {stock_symbol}.")
         return pd.DataFrame()  # Return an empty DataFrame if necessary columns are missing
-
-    open_column = open_column[0]
-    volume_column = volume_column[0]
 
     # Fill missing values
     data = data.ffill()  # Using forward fill directly
@@ -99,11 +100,9 @@ def prepare_features(data):
     data = data.dropna()
 
     # Log the shape of data after processing
-    logging.info(f"Prepared features, remaining samples: {len(data)}")
+    logging.info(f"Prepared features for {stock_symbol}, remaining samples: {len(data)}")
     
     return data
-
-
 
 
 # Train and predict stock prices using Random Forest model
