@@ -77,7 +77,7 @@ if st.button('Predict Stocks'):
                 historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
 #st.write("Available columns in historical data:", historical_data.columns.tolist())
 st.write("header historical data", historical_data.shape)
-st.write("sample historical data", historical_data.shape
+st.write("sample historical data", historical_data.shape)
                 # Define features and target variable
                 features = historical_data[['symbol_encoded', 'year', 'month', 'day'] + feature_columns]
 st.write("After columns in historical data:", historical_data.columns.tolist())
