@@ -7,7 +7,6 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
-import requests
 from datetime import datetime, timedelta
 
 # Title of the app
@@ -16,9 +15,9 @@ st.title('MarketMentorAI')
 # Sidebar for user inputs
 st.sidebar.header("Investment Inputs")
 money = st.sidebar.number_input('Enter the amount of money:', min_value=0.0, value=1000.0)
-time_weeks = st.sidebar.number_input('Enter the time in weeks:', min_value=1, value=4)
-risk_percentage = st.sidebar.number_input('Enter risk percentage (0-100):', min_value=0.0, max_value=100.0, value=50.0)
-returns = st.sidebar.number_input('Enter expected returns (1-100):', min_value=1.0, max_value=100.0, value=10.0)
+time_weeks = st.sidebar.number_input('Enter the investment duration in weeks:', min_value=1, value=4)
+risk_tolerance = st.sidebar.number_input('Enter risk tolerance (0-100):', min_value=0.0, max_value=100.0, value=50.0)
+expected_returns = st.sidebar.number_input('Enter expected returns (1-100):', min_value=1.0, max_value=100.0, value=10.0)
 
 # Function to flatten MultiIndex columns into a single level
 def flatten_columns(df):
@@ -49,15 +48,13 @@ def monte_carlo_simulation(start_price, expected_return, risk, num_simulations=1
         results.append(price_series)
     return np.array(results)
 
-# Function for fetching news articles
-def fetch_news(ticker):
-    news_api_url = f"https://newsapi.org/v2/everything?q={ticker}&apiKey=YOUR_NEWS_API_KEY"
-    response = requests.get(news_api_url)
-    if response.status_code == 200:
-        articles = response.json().get('articles', [])
-        return articles
-    else:
-        return []  # Return empty list on error
+# Function to calculate statistics based on Monte Carlo results
+def monte_carlo_stats(simulations, initial_investment):
+    final_prices = simulations[:, -1]
+    avg_final_price = np.mean(final_prices)
+    profit_or_loss = avg_final_price - simulations[0, 0]
+    percentage_change = (profit_or_loss / simulations[0, 0]) * 100
+    return avg_final_price, percentage_change, profit_or_loss
 
 # Function for Feature Engineering for ML Model
 def prepare_features(data):
@@ -116,76 +113,64 @@ if st.button('Predict Stocks'):
     if historical_data.empty:
         st.write("No historical data available for the selected period.")
     else:
-        # Check for necessary columns
-        if 'Open' not in historical_data.columns or 'Volume' not in historical_data.columns:
-            st.write("The required data columns are not available in the historical data.")
-        else:
-            # Calculate average return and risk for each stock
-            avg_returns = {}
-            for symbol in stock_tickers:
-                stock_data = historical_data[historical_data['Symbol'] == symbol]
-                if not stock_data.empty and 'Open' in stock_data.columns:
-                    daily_returns = stock_data['Open'].pct_change().dropna()  # Use 'Open' for daily returns
-                    avg_return = daily_returns.mean()
-                    risk = daily_returns.std()
-                    avg_returns[symbol] = (avg_return, risk)
+        # Calculate average return and risk for each stock
+        avg_returns = {}
+        for symbol in stock_tickers:
+            stock_data = historical_data[historical_data['Symbol'] == symbol]
+            if not stock_data.empty and 'Open' in stock_data.columns:
+                daily_returns = stock_data['Open'].pct_change().dropna()  # Use 'Open' for daily returns
+                avg_return = daily_returns.mean()
+                risk = daily_returns.std()
+                avg_returns[symbol] = (avg_return, risk)
 
-            # Predict future stock returns using the ML model
-            predictions = predict_stock_price(stock_tickers, historical_data)
+        # Predict future stock returns using the ML model
+        predictions = predict_stock_price(stock_tickers, historical_data)
 
-            # Filter stocks based on user inputs
-            recommended_stocks = []
-            for symbol, (avg_return, risk) in avg_returns.items():
-                predicted_return = predictions.get(symbol, {}).get('predicted_returns', 0)
-                if predicted_return * 100 >= returns and risk * 100 <= risk_percentage:
-                    recommended_stocks.append(symbol)
+        # Filter stocks based on user inputs
+        recommended_stocks = []
+        for symbol, (avg_return, risk) in avg_returns.items():
+            predicted_return = predictions.get(symbol, {}).get('predicted_returns', 0)
+            if predicted_return * 100 >= expected_returns and risk * 100 <= risk_tolerance:
+                recommended_stocks.append(symbol)
 
-            if recommended_stocks:
-                st.subheader("Recommended Stocks:")
-                for stock in recommended_stocks:
-                    st.write(f"### {stock}")
+        if recommended_stocks:
+            st.subheader("Recommended Stocks:")
+            for stock in recommended_stocks:
+                st.write(f"### {stock}")
 
-                    # Monte Carlo Simulation
-                    start_price = historical_data[historical_data['Symbol'] == stock]['Open'].iloc[-1]  # Use 'Open' price
-                    sim_results = monte_carlo_simulation(start_price, avg_returns[stock][0], avg_returns[stock][1], num_simulations=1000, num_days=time_weeks)
+                # Monte Carlo Simulation
+                start_price = historical_data[historical_data['Symbol'] == stock]['Open'].iloc[-1]  # Use 'Open' price
+                sim_results = monte_carlo_simulation(start_price, avg_returns[stock][0], avg_returns[stock][1], num_simulations=1000, num_days=time_weeks)
 
-                    # Plotting simulation results
-                    fig = go.Figure()
-                    for sim in sim_results:
-                        fig.add_trace(go.Scatter(y=sim, mode='lines', name=stock, showlegend=False, line=dict(color='blue', width=1), opacity=0.2))
-                    fig.update_layout(title=f'Monte Carlo Simulation for {stock}', xaxis_title='Days', yaxis_title='Price', height=400)
-                    st.plotly_chart(fig)
+                # Calculate average outcomes of simulations
+                avg_final_price, percentage_change, profit_or_loss = monte_carlo_stats(sim_results, start_price)
+                st.write(f"- **Expected final price after {time_weeks} weeks:** ${avg_final_price:.2f}")
+                st.write(f"- **Expected profit/loss:** ${profit_or_loss:.2f}")
+                st.write(f"- **Expected percentage change:** {percentage_change:.2f}%")
 
-                    # Fetch news articles
-                    news_articles = fetch_news(stock)
-                    st.write(f"### Why Invest in {stock}:")
-                    if news_articles:
-                        for article in news_articles[:3]:  # Display top 3 news articles
-                            st.write(f"- **{article['title']}**")
-                            st.write(f"  *{article['description']}*")
-                            st.write(f"[Read more]({article['url']})")
-                    else:
-                        st.write("No recent news available.")
+                # Plotting simulation results
+                fig = go.Figure()
+                for sim in sim_results:
+                    fig.add_trace(go.Scatter(y=sim, mode='lines', name=stock, showlegend=False, line=dict(color='blue', width=1), opacity=0.2))
+                fig.update_layout(title=f'Monte Carlo Simulation for {stock}', xaxis_title='Days', yaxis_title='Price', height=400)
+                st.plotly_chart(fig)
 
-                    # Advanced stock analysis (e.g., moving averages)
-                    stock_data = historical_data[historical_data['Symbol'] == stock]
-                    stock_data['SMA_20'] = stock_data['Open'].rolling(window=20).mean()  # Using 'Open' for SMA
-                    stock_data['SMA_50'] = stock_data['Open'].rolling(window=50).mean()  # Using 'Open' for SMA
+                # Advanced stock analysis (e.g., moving averages)
+                stock_data = historical_data[historical_data['Symbol'] == stock]
+                stock_data['SMA_20'] = stock_data['Open'].rolling(window=20).mean()  # Using 'Open' for SMA
+                stock_data['SMA_50'] = stock_data['Open'].rolling(window=50).mean()  # Using 'Open' for SMA
 
-                    # Plotting historical prices with moving averages
-                    fig2 = go.Figure()
-                    fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['Open'], mode='lines', name='Open Price', line=dict(color='orange', width=2)))
-                    fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_20'], mode='lines', name='20 Day SMA', line=dict(color='blue', width=2)))
-                    fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_50'], mode='lines', name='50 Day SMA', line=dict(color='green', width=2)))
-                    fig2.update_layout(title=f'{stock} Historical Prices with Moving Averages', xaxis_title='Date', yaxis_title='Price', height=400)
-                    st.plotly_chart(fig2)
+                # Plotting historical prices with moving averages
+                fig2 = go.Figure()
+                fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['Open'], mode='lines', name='Open Price', line=dict(color='orange', width=2)))
+                fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_20'], mode='lines', name='20 Day SMA', line=dict(color='blue', width=2)))
+                fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_50'], mode='lines', name='50 Day SMA', line=dict(color='green', width=2)))
+                fig2.update_layout(title=f'{stock} Historical Prices with Moving Averages', xaxis_title='Date', yaxis_title='Price', height=400)
+                st.plotly_chart(fig2)
 
-                    # Value at Risk calculation
-                    if not daily_returns.empty:
-                        var = np.percent
-                        var = np.percentile(daily_returns, 100 - risk_percentage)
-                        cvar = daily_returns[daily_returns <= var].mean()
-                        st.write(f"- **Value at Risk (VaR)**: {var * 100:.2f}%")
-                        st.write(f"- **Conditional Value at Risk (CVaR)**: {cvar * 100:.2f}%")
-       
-
+                # Value at Risk calculation
+                if not daily_returns.empty:
+                    var = np.percentile(daily_returns, 100 - risk_tolerance)
+                    cvar = daily_returns[daily_returns <= var].mean()
+                    st.write(f"- **Value at Risk (VaR):** {var * 100:.2f}%")
+                    st.write(f"- **Conditional Value at Risk (CVaR):** {cvar * 100:.2f}%")
