@@ -37,7 +37,7 @@ def flatten_columns(df):
     return df
 
 # After fetching historical data, check column names
-st.write("Columns in Historical Data:", historical_data.columns)
+#st.write("Columns in Historical Data:", historical_data.columns)
 
 # Fetch historical stock data from Yahoo Finance
 def prepare_data(tickers, start_date, end_date):
