@@ -144,9 +144,9 @@ if st.button('Predict Stocks'):
 
                 # Calculate average outcomes of simulations
                 avg_final_price, percentage_change, profit_or_loss = monte_carlo_stats(sim_results, start_price)
-                st.write(f"- **Expected final price after {time_weeks} weeks:** ${avg_final_price:.2f}")
-                st.write(f"- **Expected profit/loss:** ${profit_or_loss:.2f}")
-                st.write(f"- **Expected percentage change:** {percentage_change:.2f}%")
+                st.metric(label=f"Expected Final Price ({time_weeks} weeks)", value=f"${avg_final_price:.2f}")
+                st.metric(label="Expected Profit/Loss", value=f"${profit_or_loss:.2f}")
+                st.metric(label="Expected Percentage Change", value=f"{percentage_change:.2f}%")
 
                 # Plotting simulation results
                 fig = go.Figure()
@@ -174,3 +174,5 @@ if st.button('Predict Stocks'):
                     cvar = daily_returns[daily_returns <= var].mean()
                     st.write(f"- **Value at Risk (VaR):** {var * 100:.2f}%")
                     st.write(f"- **Conditional Value at Risk (CVaR):** {cvar * 100:.2f}%")
+        else:
+            st.write("No stocks match your risk and return criteria.")
