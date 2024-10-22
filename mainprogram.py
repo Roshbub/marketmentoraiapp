@@ -27,6 +27,11 @@ historical_period = st.sidebar.selectbox('Select historical data period:', valid
 historical_data = pd.DataFrame()
 predicted_returns = pd.Series()
 
+def flatten_columns(df):
+    """Flatten MultiIndex columns into single level."""
+    df.columns = [' '.join(col).strip() for col in df.columns.values]
+    return df
+
 def prepare_data(tickers, period):
     """Fetch historical stock data."""
     historical_data = []
@@ -34,6 +39,7 @@ def prepare_data(tickers, period):
         for symbol in tqdm(tickers['Symbol'], desc="Downloading data"):
             try:
                 stock_data = yf.download(symbol, period=period)
+                stock_data = flatten_columns(stock_data)  # Flatten the MultiIndex
                 if not stock_data.empty:
                     stock_data['Symbol'] = symbol
                     historical_data.append(stock_data)
@@ -85,11 +91,11 @@ def predict_stock_investment(model, live_data, le):
         try:
             prepared_data.append({
                 'symbol': symbol,
-                'Open': data['open'],
-                'High': data['dayHigh'],
-                'Low': data['dayLow'],
-                'Close': data['previousClose'],
-                'Volume': data['volume']
+                'Open': data['Open'],
+                'High': data['High'],
+                'Low': data['Low'],
+                'Close': data['Close'],
+                'Volume': data['Volume']
             })
         except Exception as e:
             st.warning(f"Could not process data for {symbol}: {e}")
@@ -140,7 +146,7 @@ if st.button('Predict Stocks'):
             st.write(f"Mean Squared Error on Test Set: {mse}")
 
             # Simulated live data
-            live_data_sp500 = {symbol: {'open': 100, 'dayHigh': 105, 'dayLow': 95, 'previousClose': 100, 'volume': 1000} for symbol in tickers['Symbol']}
+            live_data_sp500 = {symbol: {'Open': 100, 'High': 105, 'Low': 95, 'Close': 100, 'Volume': 1000} for symbol in tickers['Symbol']}
             predicted_returns = predict_stock_investment(rf_regressor, live_data_sp500, le)
             display_predictions(predicted_returns)
 
@@ -169,45 +175,5 @@ def adjust_investment_distribution(recommended_stocks, money):
         investment_distribution[symbol] = investment
         st.write(f"Allocated Investment: ${investment:.2f}")
         
-    # Display investment distribution pie chart
-    if investment_distribution:
-        fig = go.Figure(data=[go.Pie(labels=list(investment_distribution.keys()), values=list(investment_distribution.values()))])
-        fig.update_layout(title='Investment Distribution by Stock')
-        st.plotly_chart(fig)
-        
+    # Return final distribution
     return investment_distribution
-
-def risk_reward_analysis(recommended_stocks):
-    """Analyze and visualize risk vs reward for recommended stocks."""
-    st.subheader("Risk vs Reward Analysis")
-    risk_data = [{'symbol': symbol, 'predicted_return': predicted_return, 'beta': data.get('beta', 'N/A')} for symbol, data, predicted_return in recommended_stocks]
-    risk_df = pd.DataFrame(risk_data)
-
-    fig = go.Figure(data=go.Scatter(
-        x=risk_df['beta'], 
-        y=risk_df['predicted_return'],
-        mode='markers',
-        text=risk_df['symbol'],
-        marker=dict(size=12, opacity=0.8)
-    ))
-    fig.update_layout(title='Risk vs Reward', xaxis_title='Beta (Risk)', yaxis_title='Predicted Return (%)')
-    st.plotly_chart(fig)
-
-def investment_scenarios(recommended_stocks, money, time_horizon):
-    """Simulate investment scenarios based on user-defined time horizon."""
-    scenario_df = pd.DataFrame(columns=['Stock', 'Time (Weeks)', 'Investment', 'Projected Return'])
-    for symbol, data, predicted_return in recommended_stocks:
-        projected_return = money * (predicted_return / 100) * (time_horizon / 52)
-        scenario_df = scenario_df.append({'Stock': symbol, 'Time (Weeks)': time_horizon, 'Investment': money, 'Projected Return': projected_return}, ignore_index=True)
-    return scenario_df
-
-def display_portfolio_performance(scenario_df):
-    """Display the performance summary of the user's portfolio."""
-    st.subheader("Portfolio Performance Summary")
-    st.write(scenario_df)
-    
-    total_investment = scenario_df['Investment'].sum()
-    total_return = scenario_df['Projected Return'].sum()
-    st.write(f"Total Investment: ${total_investment:.2f}")
-    st.write(f"Total Projected Return: ${total_return:.2f}")
-
