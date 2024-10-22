@@ -126,6 +126,7 @@ if st.button('Predict Stocks'):
         st.write("No historical data available for the selected period.")
     else:
         avg_returns = {}
+        print(stock_tickers)
         for symbol in stock_tickers:
             stock_data = historical_data[historical_data['Symbol'] == symbol]
             if not stock_data.empty:
