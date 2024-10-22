@@ -142,7 +142,7 @@ if st.button('Predict Stocks'):
         for symbol, (avg_return, risk) in avg_returns.items():
             predicted_return = predictions.get(symbol, {}).get('predicted_returns', 0)
             #if predicted_return * 100 >= expected_returns and risk * 100 <= risk_tolerance:
-                recommended_stocks.append(symbol)
+            recommended_stocks.append(symbol)
 
         if recommended_stocks:
             st.subheader("Recommended Stocks:")
