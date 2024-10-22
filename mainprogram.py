@@ -158,7 +158,7 @@ if st.button('Predict Stocks'):
 
                 fig2 = go.Figure()
                 fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['Open'], mode='lines', name='Open Price', line=dict(color='orange')))
-                fig2.add_trace(go.Scatter(xfig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_20'], mode='lines', name='20 Day SMA', line=dict(color='blue')))
+                fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_20'], mode='lines', name='20 Day SMA', line=dict(color='blue')))
                 fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_50'], mode='lines', name='50 Day SMA', line=dict(color='green')))
                 fig2.update_layout(title=f'{stock} Historical Prices with Moving Averages', xaxis_title='Date', yaxis_title='Price', height=400)
                 st.plotly_chart(fig2)
@@ -171,4 +171,3 @@ if st.button('Predict Stocks'):
                     st.write(f"- **Conditional Value at Risk (CVaR):** {cvar * 100:.2f}%")
         else:
             st.write("No stocks met the criteria based on your inputs.")
-
