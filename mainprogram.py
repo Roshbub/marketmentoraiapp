@@ -86,6 +86,7 @@ def predict_stock_price(tickers, historical_data):
     predictions = {}
     for symbol in tickers:
         stock_data = historical_data[historical_data['Symbol'] == symbol]
+        st.write(stock_data)
         if not stock_data.empty and 'Open' in stock_data.columns:
             try:
                 features = prepare_features(stock_data)
