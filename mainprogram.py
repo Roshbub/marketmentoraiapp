@@ -109,7 +109,7 @@ def predict_stock_price(tickers, historical_data):
 def get_live_data_for_companies():
     try:
         tickers = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
-        return tickers['Symbol'].tolist()
+        return tickers['Symbol'].tolist()[:5]
     except Exception as e:
         logging.error(f"Error fetching S&P 500 companies: {e}")
         return []
