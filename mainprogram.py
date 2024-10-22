@@ -128,7 +128,7 @@ if st.button('Predict Stocks'):
         avg_returns = {}
         st.write(stock_tickers)
         for symbol in stock_tickers:
-            stock_data = historical_data[historical_data['Symbol'] == symbol]
+            stock_data [symbol] = historical_data[historical_data['Symbol'] == symbol]
             st.write(stock_data)
             if not stock_data.empty:
                 try:
