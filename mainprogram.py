@@ -79,6 +79,7 @@ def prepare_features(data):
     data['Lag_1'] = data['Return'].shift(1)
     data['Lag_2'] = data['Return'].shift(2)
     data['Volume_Change'] = data['Volume'].pct_change()
+    st.write("prepare feature", data)
     return data.dropna()
 
 # Train and predict stock prices using Random Forest model
