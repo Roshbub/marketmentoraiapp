@@ -65,7 +65,7 @@ if st.button('Predict Stocks'):
             feature_columns = [col for col in feature_columns if historical_data[col].dtype in [np.float64, np.int64]]
 
             # Check available columns
-            st.write("Available columns in historical data:", historical_data.columns.tolist())
+            #st.write("Available columns in historical data:", historical_data.columns.tolist())
             required_columns = ['Symbol', 'year', 'month', 'day'] + feature_columns
             missing_columns = [col for col in required_columns if col not in historical_data.columns]
 
@@ -75,9 +75,12 @@ if st.button('Predict Stocks'):
                 # Label encode the stock symbols
                 le = LabelEncoder()
                 historical_data['symbol_encoded'] = le.fit_transform(historical_data['Symbol'])
-
+#st.write("Available columns in historical data:", historical_data.columns.tolist())
+st.write("header historical data", historical_data.shape)
+st.write("sample historical data", historical_data.shape
                 # Define features and target variable
                 features = historical_data[['symbol_encoded', 'year', 'month', 'day'] + feature_columns]
+st.write("After columns in historical data:", historical_data.columns.tolist())
                 target = historical_data['Close']  # Assuming 'Close' is present
 
                 # Split data into train and test sets
