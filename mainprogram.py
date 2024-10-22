@@ -97,8 +97,8 @@ def predict_stock_investment(model, live_data, le):
                 'Close': data['Close'],
                 'Volume': data['Volume']
             })
-        except Exception as e:
-            st.warning(f"Could not process data for {symbol}: {e}")
+        except KeyError as e:
+            st.warning(f"Could not find required data for {symbol}: {e}")
             continue
     # DataFrame preparation
     prepared_df = pd.DataFrame(prepared_data)
@@ -107,9 +107,13 @@ def predict_stock_investment(model, live_data, le):
     le.classes_ = np.append(le.classes_, prepared_df['symbol'].unique())
     prepared_df['symbol_encoded'] = le.transform(prepared_df['symbol'])
     
-    # Predict using model
-    features = prepared_df[['symbol_encoded', 'year', 'month', 'day']]
-    return pd.Series(model.predict(features), index=prepared_df['symbol'])
+    # Check if required features are present before predicting
+    if 'symbol_encoded' in prepared_df.columns:
+        features = prepared_df[['symbol_encoded', 'year', 'month', 'day']]
+        return pd.Series(model.predict(features), index=prepared_df['symbol'])
+    else:
+        st.warning("No valid data available for prediction.")
+        return pd.Series(dtype=float)
 
 # Main application logic
 if st.button('Predict Stocks'):
@@ -133,37 +137,28 @@ if st.button('Predict Stocks'):
 
             # Train-Test Split
             features = historical_data[['symbol_encoded', 'year', 'month', 'day'] + feature_columns]
-            target = historical_data['Close']
-            X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
+            target = historical_data['Close'] if 'Close' in historical_data.columns else pd.Series(dtype=float)
             
-            # Model Training
-            rf_regressor = RandomForestRegressor(n_estimators=100, random_state=42)
-            rf_regressor.fit(X_train, y_train)
-            
-            # Evaluation
-            y_pred = rf_regressor.predict(X_test)
-            mse = mean_squared_error(y_test, y_pred)
-            st.write(f"Mean Squared Error on Test Set: {mse}")
+            if not target.empty:
+                X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.2, random_state=42)
+                
+                # Model Training
+                rf_regressor = RandomForestRegressor(n_estimators=100, random_state=42)
+                rf_regressor.fit(X_train, y_train)
+                
+                # Evaluation
+                y_pred = rf_regressor.predict(X_test)
+                mse = mean_squared_error(y_test, y_pred)
+                st.write(f"Mean Squared Error on Test Set: {mse}")
 
-            # Simulated live data
-            live_data_sp500 = {symbol: {'Open': 100, 'High': 105, 'Low': 95, 'Close': 100, 'Volume': 1000} for symbol in tickers['Symbol']}
-            predicted_returns = predict_stock_investment(rf_regressor, live_data_sp500, le)
-            display_predictions(predicted_returns)
+                # Simulated live data
+                live_data_sp500 = {symbol: {'Open': 100, 'High': 105, 'Low': 95, 'Close': 100, 'Volume': 1000} for symbol in tickers['Symbol']}
+                predicted_returns = predict_stock_investment(rf_regressor, live_data_sp500, le)
+                display_predictions(predicted_returns)
 
-            # Recommend stocks based on user input
-            recommended_stocks = recommend_stocks(live_data_sp500, predicted_returns, risk_percentage, money)
-            display_recommendations(recommended_stocks, money)
-
-            # Adjust Investment Distribution
-            adjusted_distribution = adjust_investment_distribution(recommended_stocks, money)
-            risk_reward_analysis(recommended_stocks)
-
-            # Simulate Investment Scenarios
-            time_horizon = st.slider('Set time horizon for simulation (weeks):', min_value=1, max_value=52, value=4)
-            scenario_df = investment_scenarios(recommended_stocks, money, time_horizon)
-
-            # Display Portfolio Performance Summary
-            display_portfolio_performance(scenario_df)
+                # Recommend stocks based on user input
+                recommended_stocks = recommend_stocks(live_data_sp500, predicted_returns, risk_percentage, money)
+                display_recommendations(recommended_stocks, money)
 
 def adjust_investment_distribution(recommended_stocks, money):
     """Allow users to adjust their investment allocation dynamically."""
