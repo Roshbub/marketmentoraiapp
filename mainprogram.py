@@ -92,6 +92,7 @@ def prepare_features(data):
 
     # Calculate returns and features
     #data['Return'] = data[open_column].pct_change()  # No fill_method specified
+    st.write("In prepare_feature", data )
     # Find the column that contains 'open'
     open_column = data.columns[data.columns.str.contains('open', case=False)]
     
@@ -101,7 +102,7 @@ def prepare_features(data):
     else:
         st.warning("No column containing 'open' found in the data.")
         return data.dropna()  # Return without processing further if no column found
-    
+    st.write("In prepare_feature", data['Return'] )
     data['Lag_1'] = data['Return'].shift(1)
     data['Lag_2'] = data['Return'].shift(2)
     data['Volume_Change'] = data[volume_column].pct_change()  # No fill_method specified
