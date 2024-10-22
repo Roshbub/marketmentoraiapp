@@ -76,17 +76,27 @@ def monte_carlo_stats(simulations):
 # Feature engineering for machine learning model
 def prepare_features(data):
     # Identify the relevant columns dynamically
-    open_column = [col for col in data.columns if 'Open' in col][0]  # Gets the first column with 'Open'
-    volume_column = [col for col in data.columns if 'Volume' in col][0]  # Gets the first column with 'Volume'
-    
+    open_column = [col for col in data.columns if 'Open' in col][0]  
+    volume_column = [col for col in data.columns if 'Volume' in col][0]
+
+    # Fill missing values
+    data = data.fillna(method='ffill')
+
     # Calculate returns and features
-    data['Return'] = data[open_column].pct_change()
-    data['Lag_1'] = data['Return'].shift(1)
-    data['Lag_2'] = data['Return'].shift(2)
-    data['Volume_Change'] = data[volume_column].pct_change()
+    data.loc[:, 'Return'] = data[open_column].pct_change()
+    data.loc[:, 'Lag_1'] = data['Return'].shift(1)
+    data.loc[:, 'Lag_2'] = data['Return'].shift(2)
+    data.loc[:, 'Volume_Change'] = data[volume_column].pct_change()
+
+    data = data.dropna()
+
+    # Check if there are enough samples for training
+    if len(data) < 5:  # Change this threshold as needed
+        logging.warning(f"Not enough data to prepare features: {data.shape[0]} samples")
+        return pd.DataFrame()  # Return an empty DataFrame if not enough samples
     
-    # Drop rows with NaN values that may have been introduced by shifting
-    return data.dropna()
+    return data
+
 
 
 # Train and predict stock prices using Random Forest model
