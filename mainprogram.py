@@ -48,8 +48,8 @@ def prepare_data(tickers, start_date, end_date):
             if not stock_data.empty:
                 stock_data = flatten_columns(stock_data)
                 stock_data['Symbol'] = symbol
-                #historical_data.append(stock_data)
-                pd.concat([historical_data, stock_data], ignore_index=True)
+                historical_data.append(stock_data)
+                #pd.concat([historical_data, stock_data], ignore_index=True)
         except Exception as e:
             logging.error(f"Error downloading data for {symbol}: {e}")
 
