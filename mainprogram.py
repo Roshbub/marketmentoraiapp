@@ -97,7 +97,7 @@ def prepare_features(data):
     open_column = data.columns[data.columns.str.contains('open', case=False)]
     
     if not open_column.empty:
-        open_column_name = open_column[0]  # Get the first matching column
+        open_column_name = open_column[0]  
         data['Return'] = data[open_column_name].pct_change()
     else:
         st.warning("No column containing 'open' found in the data.")
@@ -125,10 +125,11 @@ def predict_stock_price(tickers, historical_data):
         st.write("in predict stock price, stock_data: ", stock_data)
         
         if not stock_data.empty and stock_data.columns.str.contains('Open').any():
-            st.write ("stock_data is not empty", stock_data.shape)
+            st.write ("stock_data is not empty", stock_data)
             try:
                 features = prepare_features(stock_data)
-                st.write(symbol, features)
+                st.write(symbol)
+                st.write("features", features)
                 # Check if the required columns exist before proceeding
                 required_columns = ['Lag_1', 'Lag_2', 'Volume_Change']
                 if not all(col in features.columns for col in required_columns):
@@ -195,7 +196,7 @@ if st.button('Predict Stocks'):
                     logging.warning(f"Column 'Open' not found for {symbol}: {e}")
 
         predictions = predict_stock_price(stock_tickers, historical_data)
-        st.write (predictions)
+        st.write ("predictions", predictions)
         recommended_stocks = []
         for symbol, (avg_return, risk) in avg_returns.items():
             predicted_return = predictions.get(symbol, {}).get('predicted_returns', 0)
