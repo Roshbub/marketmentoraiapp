@@ -143,6 +143,7 @@ if st.button('Predict Stocks'):
             predicted_return = predictions.get(symbol, {}).get('predicted_returns', 0)
             #if predicted_return * 100 >= expected_returns and risk * 100 <= risk_tolerance:
             recommended_stocks.append(symbol)
+            print(recommended_stocks)
 
         if recommended_stocks:
             st.subheader("Recommended Stocks:")
