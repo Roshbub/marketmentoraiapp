@@ -55,7 +55,7 @@ if st.button('Predict Stocks'):
     if not tickers.empty:
         # Prepare historical data
         historical_data = prepare_data(tickers, historical_period)
-        print(historical_data.Tolist())
+        #print(historical_data.Tolist())
         # Check if historical data is empty
         if not historical_data.empty:
             # Feature engineering
