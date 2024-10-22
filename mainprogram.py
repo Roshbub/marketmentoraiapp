@@ -64,7 +64,7 @@ def fetch_news(ticker):
 
 # Function for Feature Engineering for ML Model
 def prepare_features(data):
-    data['Return'] = data['Close'].pct_change()
+    data['Return'] = data['Open'].pct_change()  # Use 'Open' price for returns
     data['Lag_1'] = data['Return'].shift(1)
     data['Lag_2'] = data['Return'].shift(2)
     data['Volume_Change'] = data['Volume'].pct_change()
@@ -120,8 +120,8 @@ if st.button('Predict Stocks'):
         avg_returns = {}
         for symbol in stock_tickers:
             stock_data = historical_data[historical_data['Symbol'] == symbol]
-            if not stock_data.empty and 'Close' in stock_data.columns:
-                daily_returns = stock_data['Close'].pct_change().dropna()
+            if not stock_data.empty and 'Open' in stock_data.columns:
+                daily_returns = stock_data['Open'].pct_change().dropna()  # Use 'Open' for daily returns
                 avg_return = daily_returns.mean()
                 risk = daily_returns.std()
                 avg_returns[symbol] = (avg_return, risk)
@@ -142,7 +142,7 @@ if st.button('Predict Stocks'):
                 st.write(stock)
 
                 # Monte Carlo Simulation
-                start_price = historical_data[historical_data['Symbol'] == stock]['Close'].iloc[-1]
+                start_price = historical_data[historical_data['Symbol'] == stock]['Open'].iloc[-1]  # Use 'Open' price
                 sim_results = monte_carlo_simulation(start_price, avg_returns[stock][0], avg_returns[stock][1], num_simulations=1000, num_days=time)
 
                 # Plotting simulation results
@@ -165,12 +165,12 @@ if st.button('Predict Stocks'):
 
                 # Advanced stock analysis (e.g., moving averages)
                 stock_data = historical_data[historical_data['Symbol'] == stock]
-                stock_data['SMA_20'] = stock_data['Close'].rolling(window=20).mean()
-                stock_data['SMA_50'] = stock_data['Close'].rolling(window=50).mean()
+                stock_data['SMA_20'] = stock_data['Open'].rolling(window=20).mean()  # Using 'Open' for SMA
+                stock_data['SMA_50'] = stock_data['Open'].rolling(window=50).mean()  # Using 'Open' for SMA
 
                 # Plotting historical prices with moving averages
                 fig2 = go.Figure()
-                fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['Close'], mode='lines', name='Close Price'))
+                fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['Open'], mode='lines', name='Open Price'))
                 fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_20'], mode='lines', name='20 Day SMA'))
                 fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_50'], mode='lines', name='50 Day SMA'))
                 fig2.update_layout(title=f'{stock} Historical Prices with Moving Averages', xaxis_title='Date', yaxis_title='Price')
@@ -179,11 +179,11 @@ if st.button('Predict Stocks'):
             # Provide a summary of risk analysis
             st.subheader("Risk Analysis")
             for stock in recommended_stocks:
-                daily_returns = historical_data[historical_data['Symbol'] == stock]['Close'].pct_change().dropna()
+                daily_returns = historical_data[historical_data['Symbol'] == stock]['Open'].pct_change().dropna()  # Using 'Open'
                 var = np.percentile(daily_returns, 5)  # VaR at 95% confidence level
                 cvar = daily_returns[daily_returns <= var].mean()  # CVaR
                 st.write(f"{stock}:")
-                st.write(f"- Value at Risk (VaR): {var:.2%}")
-                st.write(f"- Conditional Value at Risk (CVaR): {cvar:.2%}")
+                st.write(f"- Value at Risk (VaR): {var * 100:.2f}%")
+                st.write(f"- Conditional Value at Risk (CVaR): {cvar * 100:.2f}%")
         else:
             st.write("No stocks meet the investment criteria.")
