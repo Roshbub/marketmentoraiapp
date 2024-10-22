@@ -87,8 +87,9 @@ def predict_stock_price(tickers, historical_data):
     for symbol in tickers:
         stock_data = historical_data[historical_data['Symbol'] == symbol]
         st.write("in predict stock price, stock_data: ", stock_data)
-        if not stock_data.empty and 'Open' in stock_data.columns:
-            st.write ("stock_data is not empty")
+        #if not stock_data.empty and 'Open' in stock_data.columns:
+        if not stock_data.empty and stock_data.columns.str.contains('Open').any():
+            st.write ("stock_data is not empty", stock_data.shape)
             try:
                 features = prepare_features(stock_data)
                 X = features[['Lag_1', 'Lag_2', 'Volume_Change']]
@@ -113,7 +114,7 @@ def predict_stock_price(tickers, historical_data):
             except Exception as e:
                 logging.error(f"Error predicting price for {symbol}: {e}")
         else:
-            st.write ("stock date is empty or missing open")
+            st.write ("stock date is empty or missing open", stock_data.shape)
     return predictions
 
 # Fetch live data for S&P 500 companies from Wikipedia
