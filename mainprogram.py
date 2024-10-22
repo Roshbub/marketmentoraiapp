@@ -190,6 +190,4 @@ if st.button('Predict Stocks'):
             else:
                 st.write("No stocks meet the investment criteria.")
 
-# Running the app
-if __name__ == "__main__":
-    st.run()
+
