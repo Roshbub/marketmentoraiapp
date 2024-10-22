@@ -77,10 +77,12 @@ def monte_carlo_stats(simulations):
 def prepare_features(data, symbol):
     # Calculate returns and features
     data['Return'] = data['Open ' + symbol].pct_change()  # No fill_method specified
+    st.write("In prepare_feature, line 80")
     # Find the column that contains 'open'
     data['Lag_1'] = data['Return'].shift(1)
     data['Lag_2'] = data['Return'].shift(2)
     data['Volume_Change'] = data[volume_column].pct_change()  # No fill_method specified
+    st.write("In prepare_feature, line 85")
     st.write("In prepare_feature", data)
     
     # Drop NaN values created by pct_change and shifts
@@ -98,7 +100,7 @@ def predict_stock_price(tickers, historical_data):
     for symbol in tickers:
         stock_data = historical_data[historical_data['Symbol'] == symbol]
         st.write(symbol)
-        st.write("in predict stock price, stock_data: ", stock_data)
+        #st.write("in predict stock price, stock_data: ", stock_data)
         
         if not stock_data.empty and stock_data.columns.str.contains('Open').any():
             st.write ("stock_data is not empty", stock_data)
