@@ -135,6 +135,7 @@ if st.button('Predict Stocks'):
                     daily_returns = stock_data['Open'].pct_change().dropna()
                     avg_return = daily_returns.mean() if not daily_returns.empty else 0
                     risk = daily_returns.std() if not daily_returns.empty else 0
+                    st.write(daily_returns , avg_returns, risk)
                     avg_returns[symbol] = (avg_return, risk)
                 except KeyError as e:
                     logging.warning(f"Column 'Open' not found for {symbol}: {e}")
