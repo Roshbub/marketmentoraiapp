@@ -123,7 +123,8 @@ def predict_stock_price(tickers, historical_data):
         stock_data = historical_data[historical_data['Symbol'] == symbol]
         st.write("in predict stock price, stock_data: ", stock_data)
         
-        if not stock_data.empty and 'Open' in stock_data.columns:
+        if not stock_data.empty and stock_data.columns.str.contains('Open').any():
+            st.write ("stock_data is not empty", stock_data.shape)
             try:
                 features = prepare_features(stock_data)
                 
