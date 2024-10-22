@@ -98,14 +98,13 @@ def predict_stock_price(tickers, historical_data):
     return predictions
 
 # Function to get live data for S&P 500 companies
-def get_live_data_for_companies(tickers):
+def get_live_data_for_companies():
+    tickers = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
     return tickers['Symbol'].tolist()
 
 # Main application logic
 if st.button('Predict Stocks'):
-    # Get S&P 500 tickers
-    tickers = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
-    stock_tickers = get_live_data_for_companies(tickers)
+    stock_tickers = get_live_data_for_companies()
 
     # Calculate date range based on user input
     end_date = datetime.today()
@@ -183,11 +182,10 @@ if st.button('Predict Stocks'):
 
                     # Value at Risk calculation
                     if not daily_returns.empty:
+                        var = np.percent
                         var = np.percentile(daily_returns, 100 - risk_percentage)
                         cvar = daily_returns[daily_returns <= var].mean()
-                        st.write(f"- Value at Risk (VaR): {var * 100:.2f}%")
-                        st.write(f"- Conditional Value at Risk (CVaR): {cvar * 100:.2f}%")
-            else:
-                st.write("No stocks meet the investment criteria.")
-
+                        st.write(f"- **Value at Risk (VaR)**: {var * 100:.2f}%")
+                        st.write(f"- **Conditional Value at Risk (CVaR)**: {cvar * 100:.2f}%")
+       
 
