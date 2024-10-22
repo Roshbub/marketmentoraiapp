@@ -129,6 +129,7 @@ if st.button('Predict Stocks'):
         st.write(stock_tickers)
         for symbol in stock_tickers:
             stock_data = historical_data[historical_data['Symbol'] == symbol]
+            st.write(stock_data)
             if not stock_data.empty:
                 try:
                     daily_returns = stock_data['Open'].pct_change().dropna()
