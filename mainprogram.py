@@ -86,44 +86,30 @@ def predict_stock_price(tickers, historical_data):
     predictions = {}
     for symbol in tickers:
         stock_data = historical_data[historical_data['Symbol'] == symbol]
-        st.write("In predict_stock_price, stock_data for symbol:", symbol, stock_data)
-        
-        if stock_data.empty:
-            logging.warning(f"No data found for {symbol}.")
-            continue
+        #st.write("in predict stock price, stock_data: ", stock_data)
+        if not stock_data.empty and 'Open' in stock_data.columns:
+            try:
+                features = prepare_features(stock_data)
+                X = features[['Lag_1', 'Lag_2', 'Volume_Change']]
+                y = features['Return']
 
-        if 'Open' not in stock_data.columns:
-            logging.warning(f"'Open' column not found for {symbol}.")
-            continue
 
-        try:
-            features = prepare_features(stock_data)
-            st.write("Features for symbol:", symbol, features.head())  # Check features
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+                scaler = StandardScaler()
+                X_train_scaled = scaler.fit_transform(X_train)
+                X_test_scaled = scaler.transform(X_test)
 
-            if not all(col in features.columns for col in ['Lag_1', 'Lag_2', 'Volume_Change']):
-                logging.warning(f"Missing feature columns for {symbol}. Required: Lag_1, Lag_2, Volume_Change")
-                continue
 
-            X = features[['Lag_1', 'Lag_2', 'Volume_Change']]
-            y = features['Return']
-            
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-            scaler = StandardScaler()
-            X_train_scaled = scaler.fit_transform(X_train)
-            X_test_scaled = scaler.transform(X_test)
+                model = RandomForestRegressor()
+                model.fit(X_train_scaled, y_train)
+                y_pred = model.predict(X_test_scaled)
 
-            model = RandomForestRegressor()
-            model.fit(X_train_scaled, y_train)
-            y_pred = model.predict(X_test_scaled)
 
-            mse = mean_squared_error(y_test, y_pred)
-            predictions[symbol] = {'predicted_returns': y_pred.mean(), 'mse': mse}
-            logging.info(f"Predictions for {symbol}: {predictions[symbol]}")
-
-        except Exception as e:
-            logging.error(f"Error predicting price for {symbol}: {e}")
-
-    logging.info(f"Final predictions: {predictions}")
+                mse = mean_squared_error(y_test, y_pred)
+                predictions[symbol] = {'predicted_returns': y_pred.mean(), 'mse': mse}
+                st.write("predictions", predictions[symbol])
+            except Exception as e:
+                logging.error(f"Error predicting price for {symbol}: {e}")
     return predictions
 
 # Fetch live data for S&P 500 companies from Wikipedia
