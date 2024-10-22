@@ -86,7 +86,7 @@ def predict_stock_price(tickers, historical_data):
     predictions = {}
     for symbol in tickers:
         stock_data = historical_data[historical_data['Symbol'] == symbol]
-        st.write("in predict stock price, stock_data: ", stock_data)
+        #st.write("in predict stock price, stock_data: ", stock_data)
         if not stock_data.empty and 'Open' in stock_data.columns:
             try:
                 features = prepare_features(stock_data)
@@ -104,6 +104,7 @@ def predict_stock_price(tickers, historical_data):
 
                 mse = mean_squared_error(y_test, y_pred)
                 predictions[symbol] = {'predicted_returns': y_pred.mean(), 'mse': mse}
+                st.write("predictions", predictions[symbol])
             except Exception as e:
                 logging.error(f"Error predicting price for {symbol}: {e}")
     return predictions
