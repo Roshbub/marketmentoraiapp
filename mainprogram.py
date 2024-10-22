@@ -76,22 +76,32 @@ def monte_carlo_stats(simulations):
 # Feature engineering for machine learning model
 def prepare_features(data):
     # Extract the stock symbol from the DataFrame
-    stock_symbol = data['Symbol'].iloc[0]  # Assume the first row has the symbol
+    #stock_symbol = data['Symbol'].iloc[0]  # Assume the first row has the symbol
 
     # Dynamically create column names for 'Open' and 'Volume'
-    open_column = f'Open_{stock_symbol}'
-    volume_column = f'Volume_{stock_symbol}'
+    #open_column = f'Open_{stock_symbol}'
+    #volume_column = f'Volume_{stock_symbol}'
 
     # Check if the necessary columns exist
-    if open_column not in data.columns or volume_column not in data.columns:
-        logging.warning(f"Columns '{open_column}' or '{volume_column}' are missing for {stock_symbol}.")
-        return pd.DataFrame()  # Return an empty DataFrame if necessary columns are missing
+    #if open_column not in data.columns or volume_column not in data.columns:
+    #    logging.warning(f"Columns '{open_column}' or '{volume_column}' are missing for {stock_symbol}.")
+    #    return pd.DataFrame()  # Return an empty DataFrame if necessary columns are missing
 
     # Fill missing values
-    data = data.ffill()  # Using forward fill directly
+    #data = data.ffill()  # Using forward fill directly
 
     # Calculate returns and features
-    data['Return'] = data[open_column].pct_change()  # No fill_method specified
+    #data['Return'] = data[open_column].pct_change()  # No fill_method specified
+    # Find the column that contains 'open'
+    open_column = data.columns[data.columns.str.contains('open', case=False)]
+    
+    if not open_column.empty:
+        open_column_name = open_column[0]  # Get the first matching column
+        data['Return'] = data[open_column_name].pct_change()
+    else:
+        st.warning("No column containing 'open' found in the data.")
+        return data.dropna()  # Return without processing further if no column found
+    
     data['Lag_1'] = data['Return'].shift(1)
     data['Lag_2'] = data['Return'].shift(2)
     data['Volume_Change'] = data[volume_column].pct_change()  # No fill_method specified
