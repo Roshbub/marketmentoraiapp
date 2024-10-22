@@ -67,7 +67,7 @@ if st.button('Predict Stocks'):
             feature_columns = [col for col in historical_data.columns if col not in ['Symbol', 'year', 'month', 'day']]
             feature_columns = [col for col in feature_columns if historical_data[col].dtype in [np.float64, np.int64]]  # Use only numeric columns
             # Check available columns
-            st.write("Available columns in historical data:", historical_data.columns.tolist())
+            st.write("Available columns in historical data:", historical_data.columns.to_list())
             required_columns = ['Symbol', 'year', 'month', 'day'] + feature_columns
             missing_columns = [col for col in required_columns if col not in historical_data.columns]
 
