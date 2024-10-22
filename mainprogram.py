@@ -92,6 +92,7 @@ def predict_stock_price(tickers, historical_data):
                 features = prepare_features(stock_data)
                 X = features[['Lag_1', 'Lag_2', 'Volume_Change']]
                 y = features['Return']
+                st.write("features:", features)
 
 
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -137,7 +138,7 @@ if st.button('Predict Stocks'):
         st.write("Limited scope: ", stock_tickers)
         for symbol in stock_tickers:
             stock_data = historical_data[historical_data['Symbol'] == symbol]
-            st.write("stock data", stock_data)
+            #st.write("stock data", stock_data)
             if not stock_data.empty:
                 try:
                     daily_returns = stock_data['Open'].pct_change().dropna()
