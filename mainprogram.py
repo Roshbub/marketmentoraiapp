@@ -81,11 +81,11 @@ def prepare_features(data, symbol):
     data['Lag_1'] = data['Return'].shift(1)
     data['Lag_2'] = data['Return'].shift(2)
     data['Volume_Change'] = data[volume_column].pct_change()  # No fill_method specified
-st.write("In prepare_feature", data)
+    st.write("In prepare_feature", data)
     
     # Drop NaN values created by pct_change and shifts
     data = data.dropna()
-st.write("In prepare_feature After", data)
+    st.write("In prepare_feature After", data)
     # Log the shape of data after processing
     logging.info(f"Prepared features for {stock_symbol}, remaining samples: {len(data)}")
     
