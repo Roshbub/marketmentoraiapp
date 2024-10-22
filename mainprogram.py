@@ -75,12 +75,19 @@ def monte_carlo_stats(simulations):
 
 # Feature engineering for machine learning model
 def prepare_features(data):
-    data['Return'] = data['Open'].pct_change()
+    # Identify the relevant columns dynamically
+    open_column = [col for col in data.columns if 'Open' in col][0]  # Gets the first column with 'Open'
+    volume_column = [col for col in data.columns if 'Volume' in col][0]  # Gets the first column with 'Volume'
+    
+    # Calculate returns and features
+    data['Return'] = data[open_column].pct_change()
     data['Lag_1'] = data['Return'].shift(1)
     data['Lag_2'] = data['Return'].shift(2)
-    data['Volume_Change'] = data['Volume'].pct_change()
-    st.write("prepare feature", data)
+    data['Volume_Change'] = data[volume_column].pct_change()
+    
+    # Drop rows with NaN values that may have been introduced by shifting
     return data.dropna()
+
 
 # Train and predict stock prices using Random Forest model
 def predict_stock_price(tickers, historical_data):
