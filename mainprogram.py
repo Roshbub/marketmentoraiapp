@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
 import requests
+from datetime import datetime, timedelta
 
 # Title of the app
 st.title('MarketMentorAI')
@@ -15,13 +16,9 @@ st.title('MarketMentorAI')
 # Sidebar for user inputs
 st.sidebar.header("Investment Inputs")
 money = st.sidebar.number_input('Enter the amount of money:', min_value=0.0, value=1000.0)
-time = st.sidebar.number_input('Enter the time in weeks:', min_value=1, value=4)
+time_weeks = st.sidebar.number_input('Enter the time in weeks:', min_value=1, value=4)
 risk_percentage = st.sidebar.number_input('Enter risk percentage (0-100):', min_value=0.0, max_value=100.0, value=50.0)
 returns = st.sidebar.number_input('Enter expected returns (1-100):', min_value=1.0, max_value=100.0, value=10.0)
-
-# Dropdown for historical data period
-valid_periods = ['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max']
-historical_period = st.sidebar.selectbox('Select historical data period:', valid_periods)
 
 # Function to flatten MultiIndex columns into a single level
 def flatten_columns(df):
@@ -29,10 +26,10 @@ def flatten_columns(df):
     return df
 
 # Function to fetch historical stock data
-def prepare_data(tickers, period):
+def prepare_data(tickers, start_date, end_date):
     historical_data = []
     for symbol in tickers:
-        stock_data = yf.download(symbol, period=period)
+        stock_data = yf.download(symbol, start=start_date, end=end_date)
         if not stock_data.empty:
             stock_data = flatten_columns(stock_data)  # Flatten the MultiIndex
             stock_data['Symbol'] = symbol
@@ -109,8 +106,12 @@ if st.button('Predict Stocks'):
     # Get S&P 500 tickers
     tickers = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
     stock_tickers = get_live_data_for_companies(tickers)
-    
-    historical_data = prepare_data(stock_tickers, historical_period)
+
+    # Calculate date range based on user input
+    end_date = datetime.today()
+    start_date = end_date - timedelta(weeks=time_weeks)
+
+    historical_data = prepare_data(stock_tickers, start_date, end_date)
 
     # Check if historical_data is empty
     if historical_data.empty:
@@ -136,18 +137,18 @@ if st.button('Predict Stocks'):
             # Filter stocks based on user inputs
             recommended_stocks = []
             for symbol, (avg_return, risk) in avg_returns.items():
-                predicted_return = predictions[symbol]['predicted_returns']
+                predicted_return = predictions.get(symbol, {}).get('predicted_returns', 0)
                 if predicted_return * 100 >= returns and risk * 100 <= risk_percentage:
                     recommended_stocks.append(symbol)
 
             if recommended_stocks:
                 st.subheader("Recommended Stocks:")
                 for stock in recommended_stocks:
-                    st.write(stock)
+                    st.write(f"### {stock}")
 
                     # Monte Carlo Simulation
                     start_price = historical_data[historical_data['Symbol'] == stock]['Open'].iloc[-1]  # Use 'Open' price
-                    sim_results = monte_carlo_simulation(start_price, avg_returns[stock][0], avg_returns[stock][1], num_simulations=1000, num_days=time)
+                    sim_results = monte_carlo_simulation(start_price, avg_returns[stock][0], avg_returns[stock][1], num_simulations=1000, num_days=time_weeks)
 
                     # Plotting simulation results
                     fig = go.Figure()
@@ -174,18 +175,21 @@ if st.button('Predict Stocks'):
 
                     # Plotting historical prices with moving averages
                     fig2 = go.Figure()
-                    fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['Open'], mode='lines', name='Open Price'))
-                    fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_20'], mode='lines', name='20 Day SMA'))
-                    fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_50'], mode='lines', name='50 Day SMA'))
-                    fig2.update_layout(title=f'{stock} Historical Prices with Moving Averages', xaxis_title='Date', yaxis_title='Price')
+                    fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['Open'], mode='lines', name='Open Price', line=dict(color='orange', width=2)))
+                    fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_20'], mode='lines', name='20 Day SMA', line=dict(color='blue', width=2)))
+                    fig2.add_trace(go.Scatter(x=stock_data['Date'], y=stock_data['SMA_50'], mode='lines', name='50 Day SMA', line=dict(color='green', width=2)))
+                    fig2.update_layout(title=f'{stock} Historical Prices with Moving Averages', xaxis_title='Date', yaxis_title='Price', height=400)
                     st.plotly_chart(fig2)
 
                     # Value at Risk calculation
                     if not daily_returns.empty:
-                        var = np.percentile(daily_returns, 5)  # VaR at 95% confidence level
-                        cvar = daily_returns[daily_returns <= var].mean()  # CVaR
-                        st.write(f"{stock}:")
+                        var = np.percentile(daily_returns, 100 - risk_percentage)
+                        cvar = daily_returns[daily_returns <= var].mean()
                         st.write(f"- Value at Risk (VaR): {var * 100:.2f}%")
                         st.write(f"- Conditional Value at Risk (CVaR): {cvar * 100:.2f}%")
             else:
                 st.write("No stocks meet the investment criteria.")
+
+# Running the app
+if __name__ == "__main__":
+    st.run()
