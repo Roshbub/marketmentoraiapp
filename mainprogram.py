@@ -8,6 +8,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 from sklearn.preprocessing import StandardScaler
 from datetime import datetime, timedelta
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
 
 # Set the title for the Streamlit app
 st.title('MarketMentorAI - Investment Recommendations')
@@ -36,16 +40,16 @@ def flatten_columns(df):
 def prepare_data(tickers, start_date, end_date):
     historical_data = []
     for symbol in tickers:
-        stock_data = yf.download(symbol, start=start_date, end=end_date)
-        if not stock_data.empty:
-            stock_data = flatten_columns(stock_data)
-            stock_data['Symbol'] = symbol
-            historical_data.append(stock_data)
-    
-    if historical_data:
-        return pd.concat(historical_data).reset_index()
-    else:
-        return pd.DataFrame()
+        try:
+            stock_data = yf.download(symbol, start=start_date, end=end_date)
+            if not stock_data.empty:
+                stock_data = flatten_columns(stock_data)
+                stock_data['Symbol'] = symbol
+                historical_data.append(stock_data)
+        except Exception as e:
+            logging.error(f"Error downloading data for {symbol}: {e}")
+
+    return pd.concat(historical_data, ignore_index=True) if historical_data else pd.DataFrame()
 
 # Function for Monte Carlo simulation to project stock prices
 def monte_carlo_simulation(start_price, expected_return, risk, num_simulations=1000, num_days=30):
@@ -62,7 +66,7 @@ def monte_carlo_simulation(start_price, expected_return, risk, num_simulations=1
 def monte_carlo_stats(simulations):
     final_prices = simulations[:, -1]
     avg_final_price = np.mean(final_prices)
-    percentage_change = ((avg_final_price - simulations[0, 0]) / simulations[0, 0]) * 100
+    percentage_change = ((avg_final_price - simulations[0, 0]) / simulations[0, 0]) * 100 if simulations[0, 0] != 0 else 0
     profit_or_loss = avg_final_price - simulations[0, 0]
     return avg_final_price, percentage_change, profit_or_loss
 
@@ -80,28 +84,35 @@ def predict_stock_price(tickers, historical_data):
     for symbol in tickers:
         stock_data = historical_data[historical_data['Symbol'] == symbol]
         if not stock_data.empty and 'Open' in stock_data.columns:
-            features = prepare_features(stock_data)
-            X = features[['Lag_1', 'Lag_2', 'Volume_Change']]
-            y = features['Return']
-            
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-            scaler = StandardScaler()
-            X_train_scaled = scaler.fit_transform(X_train)
-            X_test_scaled = scaler.transform(X_test)
+            try:
+                features = prepare_features(stock_data)
+                X = features[['Lag_1', 'Lag_2', 'Volume_Change']]
+                y = features['Return']
 
-            model = RandomForestRegressor()
-            model.fit(X_train_scaled, y_train)
-            y_pred = model.predict(X_test_scaled)
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+                scaler = StandardScaler()
+                X_train_scaled = scaler.fit_transform(X_train)
+                X_test_scaled = scaler.transform(X_test)
 
-            mse = mean_squared_error(y_test, y_pred)
-            predictions[symbol] = {'predicted_returns': y_pred.mean(), 'mse': mse}
+                model = RandomForestRegressor()
+                model.fit(X_train_scaled, y_train)
+                y_pred = model.predict(X_test_scaled)
+
+                mse = mean_squared_error(y_test, y_pred)
+                predictions[symbol] = {'predicted_returns': y_pred.mean(), 'mse': mse}
+            except Exception as e:
+                logging.error(f"Error predicting price for {symbol}: {e}")
     return predictions
 
 # Fetch live data for S&P 500 companies from Wikipedia
-@st.cache  # Cache the function to avoid reloading the page every time
+@st.cache_data
 def get_live_data_for_companies():
-    tickers = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
-    return tickers['Symbol'].tolist()
+    try:
+        tickers = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
+        return tickers['Symbol'].tolist()
+    except Exception as e:
+        logging.error(f"Error fetching S&P 500 companies: {e}")
+        return []
 
 # Main application logic when the user clicks the 'Predict Stocks' button
 if st.button('Predict Stocks'):
@@ -112,16 +123,19 @@ if st.button('Predict Stocks'):
     historical_data = prepare_data(stock_tickers, start_date, end_date)
 
     if historical_data.empty:
-        st.error("No historical data available for the selected period.")
+        st.write("No historical data available for the selected period.")
     else:
         avg_returns = {}
         for symbol in stock_tickers:
             stock_data = historical_data[historical_data['Symbol'] == symbol]
             if not stock_data.empty:
-                daily_returns = stock_data['Open'].pct_change().dropna()
-                avg_return = daily_returns.mean()
-                risk = daily_returns.std()
-                avg_returns[symbol] = (avg_return, risk)
+                try:
+                    daily_returns = stock_data['Open'].pct_change().dropna()
+                    avg_return = daily_returns.mean() if not daily_returns.empty else 0
+                    risk = daily_returns.std() if not daily_returns.empty else 0
+                    avg_returns[symbol] = (avg_return, risk)
+                except KeyError as e:
+                    logging.warning(f"Column 'Open' not found for {symbol}: {e}")
 
         predictions = predict_stock_price(stock_tickers, historical_data)
         recommended_stocks = []
@@ -137,7 +151,13 @@ if st.button('Predict Stocks'):
 
                 # Monte Carlo Simulation
                 start_price = historical_data[historical_data['Symbol'] == stock]['Open'].iloc[-1]
-                sim_results = monte_carlo_simulation(start_price, avg_returns[stock][0], avg_returns[stock][1], num_simulations=1000, num_days=time_weeks)
+                sim_results = monte_carlo_simulation(
+                    start_price,
+                    avg_returns[stock][0],
+                    avg_returns[stock][1],
+                    num_simulations=1000,
+                    num_days=time_weeks
+                )
 
                 avg_final_price, percentage_change, profit_or_loss = monte_carlo_stats(sim_results)
                 st.metric(f"Expected Final Price ({time_weeks} weeks)", f"${avg_final_price:.2f}")
@@ -166,7 +186,7 @@ if st.button('Predict Stocks'):
                 # Value at Risk (VaR) and Conditional Value at Risk (CVaR) calculation
                 if not daily_returns.empty:
                     var = np.percentile(daily_returns, 100 - risk_tolerance)
-                    cvar = daily_returns[daily_returns <= var].mean()
+                    cvar = daily_returns[daily_returns <= var].mean() if not daily_returns.empty else 0
                     st.write(f"- **Value at Risk (VaR):** {var * 100:.2f}%")
                     st.write(f"- **Conditional Value at Risk (CVaR):** {cvar * 100:.2f}%")
         else:
