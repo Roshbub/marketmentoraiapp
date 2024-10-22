@@ -81,7 +81,7 @@ def prepare_features(data, symbol):
     # Find the column that contains 'open'
     data['Lag_1'] = data['Return'].shift(1)
     data['Lag_2'] = data['Return'].shift(2)
-    data['Volume_Change'] = data[volume_column].pct_change()  # No fill_method specified
+    data['Volume_Change'] = data['Volume ' + symbol].pct_change()  # No fill_method specified
     st.write("In prepare_feature, line 85")
     st.write("In prepare_feature", data)
     
