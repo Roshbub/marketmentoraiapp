@@ -36,6 +36,9 @@ def flatten_columns(df):
     df.columns = [' '.join(col).strip() for col in df.columns.values]
     return df
 
+# After fetching historical data, check column names
+st.write("Columns in Historical Data:", historical_data.columns)
+
 # Fetch historical stock data from Yahoo Finance
 def prepare_data(tickers, start_date, end_date):
     historical_data = []
@@ -121,7 +124,7 @@ if st.button('Predict Stocks'):
     start_date = end_date - timedelta(weeks=time_weeks)
 
     historical_data = prepare_data(stock_tickers, start_date, end_date)
-
+    st.write("Historical Data:", historical_data)  # Check structure
     if historical_data.empty:
         st.write("No historical data available for the selected period.")
     else:
